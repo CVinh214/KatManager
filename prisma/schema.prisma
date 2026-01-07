@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  password   String
+  role       Role
+  employeeId String?   @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("users")
+}
+
+model Employee {
+  id               String            @id @default(uuid())
+  code             String            @unique
+  name             String
+  employeeRole     EmployeeRole
+  role             Role
+  email            String            @unique
+  phone            String?
+  avatar           String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  shiftPreferences ShiftPreference[] @relation("EmployeeShiftPreferences")
+  shiftRequests    ShiftRequest[]
+  shifts           Shift[]
+  timeLogs         TimeLog[]
+  user             User?
+
+  @@map("employees")
+}
+
+model Shift {
+  id         String      @id @default(uuid())
+  employeeId String
+  date       DateTime    @db.Date
+  start      String
+  end        String
+  type       ShiftType
+  status     ShiftStatus @default(pending)
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  timeLogs   TimeLog[]
+
+  @@index([employeeId])
+  @@index([date])
+  @@map("shifts")
+}
+
+model TimeLog {
+  id           String   @id @default(uuid())
+  shiftId      String?
+  employeeId   String
+  date         DateTime @db.Date
+  actualStart  String
+  actualEnd    String
+  position     String
+  positionNote String?
+  notes        String?
+  totalHours   Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift        Shift?   @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([shiftId])
+  @@index([date])
+  @@map("time_logs")
+}
+
+model ShiftRequest {
+  id          String      @id @default(uuid())
+  employeeId  String
+  date        DateTime    @db.Date
+  shiftType   ShiftType
+  requestType RequestType
+  status      ShiftStatus @default(pending)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([status])
+  @@map("shift_requests")
+}
+
+model ShiftPreference {
+  id         String      @id @default(uuid())
+  employeeId String
+  date       DateTime    @db.Date
+  startTime  String
+  endTime    String
+  status     ShiftStatus @default(pending)
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  employee   Employee    @relation("EmployeeShiftPreferences", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+  @@map("shift_preferences")
+}
+
+model RevenueEstimate {
+  id               String   @id @default(uuid())
+  date             DateTime @unique @db.Date
+  estimatedRevenue Float
+  actualRevenue    Float?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([date])
+  @@map("revenue_estimates")
+}
+
+model CustomPosition {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("custom_positions")
+}
+
+model ShiftTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  startTime String
+  endTime   String
+  hours     Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shift_templates")
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  imageUrl  String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+enum Role {
+  manager
+  staff
+}
+
+enum EmployeeRole {
+  SM
+  SUP
+  CAP
+  FT
+  CL
+}
+
+enum Position {
+  Cashier
+  Waiter
+  Setup
+}
+
+enum ShiftStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ShiftType {
+  morning
+  afternoon
+  evening
+}
+
+enum RequestType {
+  register
+  leave
+}
