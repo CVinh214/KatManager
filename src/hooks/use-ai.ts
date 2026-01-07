@@ -85,7 +85,7 @@ export function useAI() {
    * Phân tích giờ công
    */
   const analyzeTimeLogs = async (timeLogs: any[], config?: any) => {
-    return callAI('analysis', { timeLogs }, config);
+    return callAI('analyze', { timeLogs }, config);
   };
 
   /**
