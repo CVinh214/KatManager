@@ -74,8 +74,9 @@ export interface ShiftPreference {
   employeeId: string;
   employeeName?: string;
   date: string;
-  startTime: string; // HH:mm format
-  endTime: string; // HH:mm format
+  startTime?: string; // HH:mm format - optional khi isOff = true
+  endTime?: string; // HH:mm format - optional khi isOff = true
+  isOff?: boolean; // Đăng ký nghỉ phép
   status: 'pending' | 'approved' | 'rejected';
   notes?: string;
   createdAt: Date;

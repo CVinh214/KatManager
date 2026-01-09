@@ -39,6 +39,7 @@ interface Shift {
   start: string;
   end: string;
   status: string;
+  notes?: string;
 }
 
 interface TimeLog {
@@ -143,6 +144,15 @@ export default function DashboardPage() {
     const weekHours = timeLogs.reduce((sum, log) => sum + log.totalHours, 0);
     const pendingPreferences = shiftPreferences.filter(p => p.status === 'pending');
     
+    // Employee stats - Giờ làm hôm nay
+    const myTodayShifts = shifts.filter(s => s.employeeId === user?.employeeId && s.date === today);
+    const todayWorkHours = myTodayShifts.reduce((total, shift) => {
+      const [startHour, startMin] = shift.start.split(':').map(Number);
+      const [endHour, endMin] = shift.end.split(':').map(Number);
+      const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+      return total + hours;
+    }, 0);
+    
     return {
       totalEmployees,
       todayShifts: todayShifts.length,
@@ -150,8 +160,9 @@ export default function DashboardPage() {
       weekHours: weekHours.toFixed(1),
       pendingPreferences: pendingPreferences.length,
       totalAnnouncements: announcements.length,
+      todayWorkHours: todayWorkHours.toFixed(1),
     };
-  }, [employees, shifts, timeLogs, shiftPreferences, announcements]);
+  }, [employees, shifts, timeLogs, shiftPreferences, announcements, user?.employeeId]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -216,14 +227,9 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Header */}
         <div className="mb-4 sm:mb-8">
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
             {greeting()}, {getEmployeeName()}! 👋
           </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            {isManager 
-              ? 'Tổng quan hoạt động của cửa hàng' 
-              : 'Xem tổng quan thông tin của bạn'}
-          </p>
         </div>
 
         {loading ? (
@@ -276,11 +282,11 @@ export default function DashboardPage() {
                     href="/schedule"
                   />
                   <StatCard
-                    title="Giờ công tuần"
-                    value={`${timeLogs.filter(l => l.employeeId === user.employeeId).reduce((s, l) => s + l.totalHours, 0).toFixed(1)}h`}
+                    title="Giờ làm hôm nay"
+                    value={`${stats.todayWorkHours}h`}
                     icon={Clock}
                     color="green"
-                    href="/time-logs"
+                    href="/schedule"
                   />
                   <StatCard
                     title="Đăng ký chờ"
@@ -587,27 +593,84 @@ function TodaySchedule({ shifts, employees }: { shifts: Shift[]; employees: Empl
 
 function MyWeekSchedule({ shifts }: { shifts: Shift[] }) {
   const today = formatDateISO(new Date());
-  const upcomingShifts = shifts.filter(s => s.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const todayShifts = shifts.filter(s => s.date === today);
 
-  if (upcomingShifts.length === 0) {
-    return <p className="text-gray-500 text-center py-4 text-sm">Không có ca làm trong tuần</p>;
+  if (todayShifts.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <Calendar size={32} className="mx-auto text-gray-400 mb-2" />
+        <p className="text-gray-500 text-sm">Không có ca làm hôm nay</p>
+        <p className="text-xs text-gray-400 mt-1">Nghỉ ngơi và nạp năng lượng! 😊</p>
+      </div>
+    );
   }
 
+  // Tính tổng giờ làm
+  const totalHours = todayShifts.reduce((total, shift) => {
+    const [startHour, startMin] = shift.start.split(':').map(Number);
+    const [endHour, endMin] = shift.end.split(':').map(Number);
+    const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    return total + hours;
+  }, 0);
+
   return (
-    <div className="space-y-2">
-      {upcomingShifts.slice(0, 5).map((shift) => (
-        <div key={shift.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 rounded-lg gap-2">
-          <div className="min-w-0">
-            <p className="font-medium text-gray-900 text-sm">{formatDate(new Date(shift.date))}</p>
-            <p className="text-xs sm:text-sm text-gray-600">{shift.start} - {shift.end}</p>
+    <div className="space-y-3">
+      {/* Tổng giờ làm hôm nay */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-600 font-medium">Tổng giờ hôm nay</p>
+            <p className="text-2xl font-bold text-green-700">{totalHours.toFixed(1)}h</p>
           </div>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-            shift.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-          }`}>
-            {shift.status === 'approved' ? 'Đã duyệt' : 'Chờ'}
-          </span>
+          <Clock size={32} className="text-green-600 opacity-50" />
         </div>
-      ))}
+      </div>
+
+      {/* Danh sách ca làm */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ca làm việc hôm nay</p>
+        {todayShifts.map((shift) => {
+          // Extract position from notes
+          const position = shift.notes?.includes('Position:') 
+            ? shift.notes.split('Position:')[1].trim() 
+            : 'Chưa xác định';
+          
+          const [startHour, startMin] = shift.start.split(':').map(Number);
+          const [endHour, endMin] = shift.end.split(':').map(Number);
+          const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+
+          return (
+            <div key={shift.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                      <User size={16} className="text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{position}</p>
+                      <p className="text-xs text-gray-500">Vị trí làm việc</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={14} className="text-gray-400" />
+                      <span className="font-medium text-gray-700">{shift.start} - {shift.end}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">•</span>
+                      <span className="text-gray-600">{hours.toFixed(1)}h</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <CheckCircle size={20} className="text-green-500 shrink-0 mt-1" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

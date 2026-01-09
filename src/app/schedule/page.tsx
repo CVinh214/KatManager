@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/sidebar';
 import { useAuth } from '@/hooks/use-auth';
 import { useEmployeeStore } from '@/store/employee-store';
@@ -41,6 +42,7 @@ interface ScheduleShift {
 }
 
 export default function SchedulePage() {
+  const router = useRouter();
   const { user, isHydrated } = useAuth();
   const { employees, loadEmployees } = useEmployeeStore();
   const { shiftPreferences, getShiftPreferencesByDateRange, isRegistrationEnabled, setRegistrationEnabled, updateShiftPreference, loadShiftPreferences, loadShifts } = useShiftStore();
@@ -377,16 +379,27 @@ export default function SchedulePage() {
       });
     } else if (existingShifts.length === 0 && preference && preference.status === 'pending') {
       // Nếu có preference của nhân viên, tự động điền thời gian đăng ký
-      const [startHour, startMin] = preference.startTime.split(':').map(Number);
-      const [endHour, endMin] = preference.endTime.split(':').map(Number);
-      const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
-      
-      setEditData({
-        position: '', // Quản lý cần điền vị trí
-        startTime: preference.startTime,
-        endTime: preference.endTime,
-        hours: Number(hours.toFixed(1)),
-      });
+      // Bỏ qua nếu là đăng ký nghỉ phép
+      if (preference.isOff) {
+        // Không tự động điền nếu là nghỉ phép
+        setEditData({
+          position: '',
+          startTime: '',
+          endTime: '',
+          hours: 0,
+        });
+      } else if (preference.startTime && preference.endTime) {
+        const [startHour, startMin] = preference.startTime.split(':').map(Number);
+        const [endHour, endMin] = preference.endTime.split(':').map(Number);
+        const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+        
+        setEditData({
+          position: '', // Quản lý cần điền vị trí
+          startTime: preference.startTime,
+          endTime: preference.endTime,
+          hours: Number(hours.toFixed(1)),
+        });
+      }
     } else {
       setEditData({ position: '', startTime: '', endTime: '', hours: 0 });
     }
@@ -726,20 +739,49 @@ export default function SchedulePage() {
               ) : preference && preference.status === 'pending' ? (
                 // Đang chờ duyệt
                 <div
-                  onClick={() => handleCellClick(employee.id, dateStr, 'add')}
-                  className="text-[10px] sm:text-xs bg-blue-50 p-0.5 sm:p-1 rounded border border-blue-200 w-full cursor-pointer hover:bg-blue-100"
+                  onClick={() => {
+                    // Nếu là nhân viên và đang xem lịch của chính họ, chuyển sang trang đăng ký để sửa
+                    if (!isManager && user?.employeeId === employee.id) {
+                      // Store preference info in sessionStorage để trang đăng ký có thể load
+                      sessionStorage.setItem('editPreference', JSON.stringify(preference));
+                      router.push('/employee-schedule');
+                    } else if (isManager) {
+                      // Manager có thể click để xếp lịch
+                      handleCellClick(employee.id, dateStr, 'add');
+                    }
+                  }}
+                  className={`text-[10px] sm:text-xs p-0.5 sm:p-1 rounded border w-full ${
+                    preference.isOff
+                      ? 'bg-yellow-50 border-yellow-300'
+                      : 'bg-blue-50 border-blue-200'
+                  } ${(!isManager && user?.employeeId === employee.id) || isManager ? 'cursor-pointer hover:bg-opacity-70' : ''}`}
+                  title={!isManager && user?.employeeId === employee.id ? 'Click để sửa đăng ký' : isManager ? 'Click để xếp lịch' : ''}
                 >
-                  <div className="flex items-center gap-0.5 text-blue-800 font-semibold">
+                  <div className={`flex items-center gap-0.5 font-semibold ${
+                    preference.isOff ? 'text-yellow-800' : 'text-blue-800'
+                  }`}>
                     <User size={10} />
-                    <span>ĐK</span>
+                    <span>{preference.isOff ? 'OFF' : 'ĐK'}</span>
                   </div>
-                  <div className="text-blue-700">{preference.startTime}-{preference.endTime}</div>
+                  {!preference.isOff && preference.startTime && preference.endTime && (
+                    <div className="text-blue-700">{preference.startTime}-{preference.endTime}</div>
+                  )}
                 </div>
               ) : preference && preference.status === 'approved' ? (
                 // Đã duyệt nhưng chưa có shift data
-                <div className="text-[10px] sm:text-xs bg-green-50 p-0.5 sm:p-1 rounded border border-green-300 w-full">
-                  <div className="font-semibold text-green-800">✓</div>
-                  <div className="text-green-700">{preference.startTime}-{preference.endTime}</div>
+                <div className={`text-[10px] sm:text-xs p-0.5 sm:p-1 rounded border w-full ${
+                  preference.isOff
+                    ? 'bg-yellow-100 border-yellow-400'
+                    : 'bg-green-50 border-green-300'
+                }`}>
+                  <div className={`font-semibold ${
+                    preference.isOff ? 'text-yellow-800' : 'text-green-800'
+                  }`}>
+                    {preference.isOff ? 'OFF ✓' : '✓'}
+                  </div>
+                  {!preference.isOff && preference.startTime && preference.endTime && (
+                    <div className="text-green-700">{preference.startTime}-{preference.endTime}</div>
+                  )}
                 </div>
               ) : preference && preference.status === 'rejected' ? (
                 // Đã từ chối
@@ -796,7 +838,7 @@ export default function SchedulePage() {
       <div className="max-w-full mx-auto">
         {/* Header - Responsive */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">ROSTER - Lịch làm việc tuần</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Lịch làm việc tuần</h1>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             {/* Toggle đăng ký lịch cho quản lý */}
             {isManager && (
@@ -822,21 +864,21 @@ export default function SchedulePage() {
               </div>
             )}
             {/* Week navigation */}
-            <div className="flex items-center gap-2 sm:gap-3 text-gray-900">
+            <div className="flex items-center gap-2 sm:gap-3 text-gray-900 bg-white px-3 py-2 rounded-xl border-2 border-indigo-200 shadow-sm">
               <button
                 onClick={handlePreviousWeek}
-                className="p-1.5 sm:p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="p-1.5 sm:p-2 border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={18} className="text-indigo-600" />
               </button>
-              <span className="text-sm sm:text-base lg:text-lg font-medium px-2 sm:px-4 min-w-[140px] sm:min-w-[180px] text-center">
+              <span className="text-sm sm:text-base lg:text-lg font-semibold px-2 sm:px-4 min-w-[140px] sm:min-w-[180px] text-center text-indigo-900">
                 {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
               </span>
               <button
                 onClick={handleNextWeek}
-                className="p-1.5 sm:p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="p-1.5 sm:p-2 border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={18} className="text-indigo-600" />
               </button>
             </div>
           </div>
@@ -1040,14 +1082,31 @@ export default function SchedulePage() {
                 const preference = getPreferenceForCell(selectedCell.employeeId, selectedCell.date);
                 if (preference && preference.status === 'pending') {
                   return (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className={`mb-4 p-3 border rounded-lg ${
+                      preference.isOff 
+                        ? 'bg-yellow-50 border-yellow-300' 
+                        : 'bg-blue-50 border-blue-200'
+                    }`}>
                       <div className="flex items-center gap-2 text-sm">
-                        <User size={14} className="text-blue-600" />
-                        <span className="font-semibold text-blue-800">NV đã đăng ký:</span>
+                        <User size={14} className={preference.isOff ? 'text-yellow-600' : 'text-blue-600'} />
+                        <span className={`font-semibold ${preference.isOff ? 'text-yellow-800' : 'text-blue-800'}`}>
+                          {preference.isOff ? '🏖️ NV đăng ký nghỉ phép' : '📝 NV đã đăng ký:'}
+                        </span>
                       </div>
-                      <div className="text-sm text-blue-700 mt-1">
-                        ⏰ {preference.startTime} - {preference.endTime}
-                      </div>
+                      {!preference.isOff && preference.startTime && preference.endTime && (
+                        <div className="text-sm text-blue-700 mt-1">
+                          ⏰ {preference.startTime} - {preference.endTime}
+                        </div>
+                      )}
+                      {preference.notes && (
+                        <div className={`text-sm mt-2 p-2 rounded ${
+                          preference.isOff 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          <span className="font-semibold">💬 Ghi chú:</span> {preference.notes}
+                        </div>
+                      )}
                     </div>
                   );
                 }

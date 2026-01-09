@@ -53,12 +53,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let { employeeId, date, startTime, endTime, notes } = body;
+    let { employeeId, date, startTime, endTime, notes, isOff } = body;
 
     // Validate required fields
-    if (!employeeId || !date || !startTime || !endTime) {
+    if (!employeeId || !date) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: employeeId and date are required' },
+        { status: 400 }
+      );
+    }
+
+    // Nếu không phải nghỉ phép, validate startTime và endTime
+    if (!isOff && (!startTime || !endTime)) {
+      return NextResponse.json(
+        { error: 'Missing required fields: startTime and endTime are required for work shifts' },
         { status: 400 }
       );
     }
@@ -71,17 +79,19 @@ export async function POST(request: NextRequest) {
       // In production, you should implement proper auth that returns database employee IDs
     }
 
-    // Validate time
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
+    // Validate time - chỉ khi không phải nghỉ phép
+    if (!isOff && startTime && endTime) {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
 
-    if (startMinutes >= endMinutes) {
-      return NextResponse.json(
-        { error: 'Start time must be before end time' },
-        { status: 400 }
-      );
+      if (startMinutes >= endMinutes) {
+        return NextResponse.json(
+          { error: 'Start time must be before end time' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if employee exists (optional - commented out for now)
@@ -106,16 +116,18 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
-        startTime,
-        endTime,
+        startTime: isOff ? null : startTime,
+        endTime: isOff ? null : endTime,
+        isOff: isOff || false,
         notes,
         status: 'pending', // Reset to pending if updating
       },
       create: {
         employeeId,
         date: new Date(date),
-        startTime,
-        endTime,
+        startTime: isOff ? null : startTime,
+        endTime: isOff ? null : endTime,
+        isOff: isOff || false,
         notes,
         status: 'pending',
       },
@@ -172,8 +184,8 @@ export async function PUT(request: NextRequest) {
 // DELETE: Xóa shift preference
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const body = await request.json();
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json(

@@ -663,7 +663,7 @@ export default function TimeLogsPage() {
                   <select
                     value={formData.position}
                     onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   >
                     {allPositions.map(pos => (
                       <option key={pos} value={pos}>
@@ -681,7 +681,7 @@ export default function TimeLogsPage() {
                   <select
                     value={selectedTemplate}
                     onChange={(e) => handleTemplateSelect(e.target.value)}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   >
                     <option value="">-- Chọn hoặc nhập thủ công --</option>
                     {shiftTemplates.map(template => (
@@ -702,7 +702,7 @@ export default function TimeLogsPage() {
                       type="time"
                       value={formData.actualStart}
                       onChange={(e) => setFormData(prev => ({ ...prev, actualStart: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     />
                   </div>
                   <div>
@@ -713,7 +713,7 @@ export default function TimeLogsPage() {
                       type="time"
                       value={formData.actualEnd}
                       onChange={(e) => setFormData(prev => ({ ...prev, actualEnd: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     />
                   </div>
                 </div>
@@ -736,7 +736,7 @@ export default function TimeLogsPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Ghi chú thêm..."
                     rows={2}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   />
                 </div>
               </div>

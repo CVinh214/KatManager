@@ -103,8 +103,9 @@ model ShiftPreference {
   id         String      @id @default(uuid())
   employeeId String
   date       DateTime    @db.Date
-  startTime  String
-  endTime    String
+  startTime  String?
+  endTime    String?
+  isOff      Boolean     @default(false)
   status     ShiftStatus @default(pending)
   notes      String?
   createdAt  DateTime    @default(now())

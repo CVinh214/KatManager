@@ -12,14 +12,16 @@ interface PreferenceForm {
   startTime: string;
   endTime: string;
   notes: string;
+  isOff: boolean;
 }
 
 const SHIFT_TEMPLATES = [
-  { name: 'Ca sáng (7h30 - 12h30)', start: '07:30', end: '12:30' },
-  { name: 'Ca chiều (12h30 - 17h)', start: '12:30', end: '17:00' },
-  { name: 'Ca tối (17h - 22h)', start: '17:00', end: '22:00' },
-  { name: 'Ca sáng dài (7h30 - 15h)', start: '07:30', end: '15:00' },
-  { name: 'Ca chiều dài (15h - 22h)', start: '15:00', end: '22:00' },
+  { name: 'OFF 🏖️', start: '', end: '', isOff: true },
+  { name: 'Ca sáng (7h30 - 12h30)', start: '07:30', end: '12:30', isOff: false },
+  { name: 'Ca chiều (12h30 - 17h)', start: '12:30', end: '17:00', isOff: false },
+  { name: 'Ca tối (17h - 22h)', start: '17:00', end: '22:00', isOff: false },
+  { name: 'Ca sáng dài (7h30 - 15h)', start: '07:30', end: '15:00', isOff: false },
+  { name: 'Ca chiều dài (15h - 22h)', start: '15:00', end: '22:00', isOff: false },
 ];
 
 export default function ShiftPreferenceForm() {
@@ -42,6 +44,7 @@ export default function ShiftPreferenceForm() {
     startTime: '',
     endTime: '',
     notes: '',
+    isOff: false,
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(true);
@@ -98,6 +101,27 @@ export default function ShiftPreferenceForm() {
     }
   }, [weekDates]);
 
+  // Check if there's a preference to edit from sessionStorage (from roster page)
+  useEffect(() => {
+    const editPref = sessionStorage.getItem('editPreference');
+    if (editPref) {
+      try {
+        const pref = JSON.parse(editPref);
+        // Load the preference into form
+        handleEditPreference(pref);
+        // Clear from sessionStorage
+        sessionStorage.removeItem('editPreference');
+        
+        // Navigate to the week containing this date
+        const prefDate = new Date(pref.date);
+        setCurrentWeek(prefDate);
+      } catch (error) {
+        console.error('Error loading preference from session:', error);
+        sessionStorage.removeItem('editPreference');
+      }
+    }
+  }, []); // Run once on mount
+
   // Helper to get holiday for a specific date
   const getHolidayForDate = (date: string): VietnamHoliday | undefined => {
     return holidays.find(h => h.date === date);
@@ -140,11 +164,72 @@ export default function ShiftPreferenceForm() {
   };
 
   const handleTemplateSelect = (template: typeof SHIFT_TEMPLATES[0]) => {
+    if (template.isOff) {
+      setForm({
+        ...form,
+        startTime: '',
+        endTime: '',
+        isOff: true,
+      });
+    } else {
+      setForm({
+        ...form,
+        startTime: template.start,
+        endTime: template.end,
+        isOff: false,
+      });
+    }
+  };
+
+  const handleEditPreference = (pref: any) => {
+    setSelectedDate(pref.date);
     setForm({
-      ...form,
-      startTime: template.start,
-      endTime: template.end,
+      date: pref.date,
+      startTime: pref.startTime || '',
+      endTime: pref.endTime || '',
+      notes: pref.notes || '',
+      isOff: pref.isOff || false,
     });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeletePreference = async (prefId: string, date: string) => {
+    try {
+      const response = await fetch('/api/shift-preferences', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: prefId }),
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        const { shiftPreferences } = useShiftStore.getState();
+        useShiftStore.setState({
+          shiftPreferences: shiftPreferences.filter(p => p.id !== prefId),
+        });
+        // Clear form if this is the selected date
+        if (form.date === date) {
+          setForm({
+            date: '',
+            startTime: '',
+            endTime: '',
+            notes: '',
+            isOff: false,
+          });
+          setSelectedDate('');
+        }
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Có lỗi khi xóa đăng ký' 
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,20 +249,28 @@ export default function ShiftPreferenceForm() {
       return;
     }
 
-    if (!form.date || !form.startTime || !form.endTime) {
-      setMessage({ type: 'error', text: 'Vui lòng điền đầy đủ thông tin' });
+    if (!form.date) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn ngày' });
       return;
     }
 
-    // Validate time
-    const [startHour, startMin] = form.startTime.split(':').map(Number);
-    const [endHour, endMin] = form.endTime.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
+    // Nếu không phải nghỉ phép, validate thời gian
+    if (!form.isOff) {
+      if (!form.startTime || !form.endTime) {
+        setMessage({ type: 'error', text: 'Vui lòng điền đầy đủ thông tin' });
+        return;
+      }
 
-    if (startMinutes >= endMinutes) {
-      setMessage({ type: 'error', text: 'Giờ bắt đầu phải nhỏ hơn giờ kết thúc' });
-      return;
+      // Validate time
+      const [startHour, startMin] = form.startTime.split(':').map(Number);
+      const [endHour, endMin] = form.endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      if (startMinutes >= endMinutes) {
+        setMessage({ type: 'error', text: 'Giờ bắt đầu phải nhỏ hơn giờ kết thúc' });
+        return;
+      }
     }
 
     try {
@@ -185,15 +278,11 @@ export default function ShiftPreferenceForm() {
       await addShiftPreference({
         employeeId: user.employeeId,
         date: form.date,
-        startTime: form.startTime,
-        endTime: form.endTime,
+        startTime: form.isOff ? '' : form.startTime,
+        endTime: form.isOff ? '' : form.endTime,
+        isOff: form.isOff,
         status: 'pending',
         notes: form.notes,
-      });
-
-      setMessage({ 
-        type: 'success', 
-        text: 'Đăng ký lịch thành công! Quản lý sẽ xem xét và xếp lịch cho bạn.' 
       });
 
       // Reset form
@@ -202,6 +291,7 @@ export default function ShiftPreferenceForm() {
         startTime: '',
         endTime: '',
         notes: '',
+        isOff: false,
       });
       setSelectedDate('');
     } catch (error) {
@@ -236,12 +326,10 @@ export default function ShiftPreferenceForm() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Calendar className="text-indigo-600" size={24} />
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
           Đăng ký lịch làm việc
-        </h2>
-
+        </h1>
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         {/* Thông báo thời gian đăng ký - Simplified for mobile */}
         <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${
           isRegistrationOpen 
@@ -358,7 +446,7 @@ export default function ShiftPreferenceForm() {
                   )}
                   {hasPref && pref && (
                     <div className="text-[10px] mt-0.5 font-semibold hidden sm:block">
-                      {pref.startTime}
+                      {pref.isOff ? '🏖️' : pref.startTime}
                     </div>
                   )}
                 </button>
@@ -381,7 +469,11 @@ export default function ShiftPreferenceForm() {
                   type="button"
                   onClick={() => handleTemplateSelect(template)}
                   disabled={!isRegistrationOpen}
-                  className="px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 text-gray-900 text-sm disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  className={`px-3 py-2 border rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed text-left ${
+                    template.isOff
+                      ? 'bg-red-50 border-red-300 hover:bg-red-100 text-red-900 font-semibold'
+                      : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-gray-900'
+                  }`}
                 >
                   {template.name}
                 </button>
@@ -389,32 +481,45 @@ export default function ShiftPreferenceForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1.5 flex items-center gap-1">
-                <Clock size={14} /> Giờ bắt đầu
-              </label>
-              <input
-                type="time"
-                value={form.startTime}
-                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                disabled={!isRegistrationOpen}
-              />
+          {/* Chỉ hiển thị khung giờ khi KHÔNG phải đăng ký nghỉ */}
+          {!form.isOff && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5 flex items-center gap-1">
+                  <Clock size={14} /> Giờ bắt đầu
+                </label>
+                <input
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                  className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  disabled={!isRegistrationOpen}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5 flex items-center gap-1">
+                  <Clock size={14} /> Giờ kết thúc
+                </label>
+                <input
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                  className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  disabled={!isRegistrationOpen}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1.5 flex items-center gap-1">
-                <Clock size={14} /> Giờ kết thúc
-              </label>
-              <input
-                type="time"
-                value={form.endTime}
-                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                disabled={!isRegistrationOpen}
-              />
+          )}
+
+          {/* Hiển thị thông báo khi đăng ký nghỉ */}
+          {form.isOff && (
+            <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+              <p className="text-sm text-yellow-900">
+                🏖️ <strong>Đăng ký nghỉ phép:</strong> Bạn đang đăng ký xin nghỉ cho ngày đã chọn. 
+                Quản lý sẽ xem xét và phê duyệt đơn của bạn.
+              </p>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-1.5">
@@ -432,10 +537,10 @@ export default function ShiftPreferenceForm() {
 
           <button
             type="submit"
-            disabled={!isRegistrationOpen || !form.date || !form.startTime || !form.endTime}
+            disabled={!isRegistrationOpen || !form.date || (!form.isOff && (!form.startTime || !form.endTime))}
             className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Đăng ký lịch làm việc
+            {form.isOff ? '🏖️ Đăng ký nghỉ phép' : 'Đăng ký lịch làm việc'}
           </button>
         </form>
 
@@ -476,7 +581,7 @@ export default function ShiftPreferenceForm() {
                     }`}
                   >
                     <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="font-semibold text-sm text-gray-900">
                           {dayNames[date.getDay()]}, {date.getDate()}/{date.getMonth() + 1}
                         </div>
@@ -486,20 +591,48 @@ export default function ShiftPreferenceForm() {
                           </div>
                         ) : pref && (
                           <div className="text-xs text-gray-600 mt-1">
-                            {pref.startTime}-{pref.endTime}
+                            {pref.isOff ? '🏖️ Nghỉ phép' : (pref.startTime && pref.endTime ? `${pref.startTime}-${pref.endTime}` : 'Chưa có giờ')}
                           </div>
                         )}
                       </div>
-                      <div className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
-                        assignedShift
-                          ? 'bg-green-200 text-green-800'
-                          : pref?.status === 'rejected'
-                          ? 'bg-red-200 text-red-800'
-                          : 'bg-yellow-200 text-yellow-800'
-                      }`}>
-                        {assignedShift && '✓ Đã xếp'}
-                        {!assignedShift && pref?.status === 'rejected' && '✗'}
-                        {!assignedShift && pref?.status === 'pending' && '⏳'}
+                      <div className="flex items-center gap-2">
+                        {/* Status badge */}
+                        <div className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                          assignedShift
+                            ? 'bg-green-200 text-green-800'
+                            : pref?.status === 'rejected'
+                            ? 'bg-red-200 text-red-800'
+                            : 'bg-yellow-200 text-yellow-800'
+                        }`}>
+                          {assignedShift && '✓ Đã xếp'}
+                          {!assignedShift && pref?.status === 'rejected' && '✗'}
+                          {!assignedShift && pref?.status === 'pending' && '⏳'}
+                        </div>
+                        {/* Edit/Delete buttons - chỉ hiện khi còn pending và chưa có assigned shift */}
+                        {!assignedShift && pref?.status === 'pending' && (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleEditPreference(pref)}
+                              className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                              title="Sửa đăng ký"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePreference(pref.id, dateStr)}
+                              className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                              title="Xóa đăng ký"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
