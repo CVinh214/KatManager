@@ -62,25 +62,36 @@ export async function POST(request: NextRequest) {
     const { employeeId, date, actualStart, actualEnd, position, positionNote, notes } = body;
 
     // Validation
-    if (!employeeId || !date || !actualStart || !actualEnd || !position) {
+    if (!employeeId || !date || !position) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
+    // Nếu không phải OFF, validate actualStart và actualEnd
+    if (position !== 'OFF' && (!actualStart || !actualEnd)) {
+      return NextResponse.json(
+        { error: 'actualStart and actualEnd are required for non-OFF positions' },
+        { status: 400 }
+      );
+    }
+
     // Calculate total hours
-    const [startHour, startMin] = actualStart.split(':').map(Number);
-    const [endHour, endMin] = actualEnd.split(':').map(Number);
-    const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    let totalHours = 0;
+    if (position !== 'OFF' && actualStart && actualEnd) {
+      const [startHour, startMin] = actualStart.split(':').map(Number);
+      const [endHour, endMin] = actualEnd.split(':').map(Number);
+      totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    }
 
     // Time log không cần tạo shift - chỉ ghi nhận giờ công thực tế
     const timeLog = await prisma.timeLog.create({
       data: {
         employeeId,
         date: new Date(date),
-        actualStart,
-        actualEnd,
+        actualStart: position === 'OFF' ? '00:00' : actualStart,
+        actualEnd: position === 'OFF' ? '00:00' : actualEnd,
         position,
         positionNote,
         notes,
@@ -127,16 +138,19 @@ export async function PUT(request: NextRequest) {
 
     // Calculate total hours
     let totalHours = undefined;
-    if (actualStart && actualEnd) {
+    if (position !== 'OFF' && actualStart && actualEnd) {
       const [startHour, startMin] = actualStart.split(':').map(Number);
       const [endHour, endMin] = actualEnd.split(':').map(Number);
       totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    } else if (position === 'OFF') {
+      totalHours = 0;
     }
 
     const timeLog = await prisma.timeLog.update({
       where: { id },
       data: {
-        ...(actualStart && { actualStart }),
+        ...(actualStart && { actualStart: position === 'OFF' ? '00:00' : actualStart }),
+        ...(actualEnd && { actualEnd: position === 'OFF' ? '00:00' : actualEnd }),
         ...(actualEnd && { actualEnd }),
         ...(position && { position }),
         ...(positionNote !== undefined && { positionNote }),

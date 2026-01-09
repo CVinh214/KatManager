@@ -48,13 +48,14 @@ const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
   { id: '7', name: 'Ca full (12h30 - 22h)', startTime: '12:30', endTime: '22:00', hours: 9.5 },
 ];
 
-const DEFAULT_POSITIONS = ['Cashier', 'Waiter', 'Setup'];
+const DEFAULT_POSITIONS = ['Cashier', 'Waiter', 'Setup', 'OFF'];
 
 const getPositionLabel = (position: string): string => {
   const labels: Record<string, string> = {
     Cashier: 'Cashier',
     Waiter: 'Waiter',
     Setup: 'Setup',
+    OFF: 'OFF',
   };
   return labels[position] || position;
 };
@@ -600,7 +601,7 @@ export default function TimeLogsPage() {
                                     {log.actualStart}-{log.actualEnd}
                                   </div>
                                   <div className="text-[10px] sm:text-xs text-blue-700">
-                                    {log.position} ({log.totalHours.toFixed(1)}h)
+                                    {log.position !== 'OFF' && `${log.position} `}({log.totalHours.toFixed(1)}h)
                                   </div>
                                 </div>
                               ))}
@@ -693,38 +694,42 @@ export default function TimeLogsPage() {
                 </div>
 
                 {/* Time inputs */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giờ vào
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.actualStart}
-                      onChange={(e) => setFormData(prev => ({ ...prev, actualStart: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
-                    />
+                {formData.position !== 'OFF' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Giờ vào
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.actualStart}
+                        onChange={(e) => setFormData(prev => ({ ...prev, actualStart: e.target.value }))}
+                        className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Giờ ra
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.actualEnd}
+                        onChange={(e) => setFormData(prev => ({ ...prev, actualEnd: e.target.value }))}
+                        className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giờ ra
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.actualEnd}
-                      onChange={(e) => setFormData(prev => ({ ...prev, actualEnd: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* Calculated Hours */}
-                <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
-                  <span className="text-sm font-medium text-indigo-700">Giờ công:</span>
-                  <span className="text-lg font-bold text-indigo-600">
-                    {calculateHours(formData.actualStart, formData.actualEnd).toFixed(1)}h
-                  </span>
-                </div>
+                {formData.position !== 'OFF' && (
+                  <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                    <span className="text-sm font-medium text-indigo-700">Giờ công:</span>
+                    <span className="text-lg font-bold text-indigo-600">
+                      {calculateHours(formData.actualStart, formData.actualEnd).toFixed(1)}h
+                    </span>
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>
