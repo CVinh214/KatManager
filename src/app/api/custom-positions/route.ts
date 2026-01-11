@@ -25,7 +25,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, label } = body;
+    const { name, label, color, icon } = body;
 
     if (!name || !label) {
       return NextResponse.json(
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         label,
+        color: color || '#6366f1',
+        icon: icon || '📦',
       },
     });
 

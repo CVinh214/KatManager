@@ -48,6 +48,49 @@ ACCOUNTS_INFO.md
 *_CREDENTIALS.md
 *.pem
 *.key
+*.env
+*.env.local
+*.env.production
+*.env.development
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Deployment scripts with credentials
+deploy_prod.sh
+deploy_prod.ps1
 .vscode/settings.json
 AI_INTEGRATION.md
 DATABASE_SEED_GUIDE.md
@@ -56,3 +99,11 @@ GUIDE.md
 DEPLOY_CHECKLIST.md
 SCHEDULE_FEATURE_GUIDE.md
 UPDATE_LOG_20260105.md
+OPTIMIZATION_COMPLETE.md
+PERFORMANCE_IMPROVEMENTS_SUMMARY.md
+PERFORMANCE_OPTIMIZATION_GUIDE.md
+PERFORMANCE_QUICKSTART.md
+TESTING_CHECKLIST.md
+USER_GUIDE.txt
+run-performance-migration.ps1
+prisma.config.ts.bak

@@ -13,6 +13,7 @@ export interface User {
   email: string;
   role: Role;
   employeeId?: string;
+  avatar?: string;
 }
 
 export interface Employee {
@@ -88,6 +89,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateAvatar: (avatar: string) => void;
 }
 
 export interface EmployeeState {

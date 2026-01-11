@@ -3,6 +3,30 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Simple in-memory lock to prevent duplicate submissions
+const submissionLocks = new Map<string, number>();
+const LOCK_DURATION = 2000; // 2 seconds
+
+function acquireLock(key: string): boolean {
+  const now = Date.now();
+  const existing = submissionLocks.get(key);
+  
+  if (existing && now - existing > LOCK_DURATION) {
+    submissionLocks.delete(key);
+  }
+  
+  if (submissionLocks.has(key)) {
+    return false;
+  }
+  
+  submissionLocks.set(key, now);
+  return true;
+}
+
+function releaseLock(key: string): void {
+  submissionLocks.delete(key);
+}
+
 // GET - Lấy danh sách time logs
 export async function GET(request: NextRequest) {
   try {
@@ -77,43 +101,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate total hours
-    let totalHours = 0;
-    if (position !== 'OFF' && actualStart && actualEnd) {
-      const [startHour, startMin] = actualStart.split(':').map(Number);
-      const [endHour, endMin] = actualEnd.split(':').map(Number);
-      totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    // Create lock key for duplicate prevention
+    const lockKey = `timelog:${employeeId}:${date}:${position}`;
+    
+    if (!acquireLock(lockKey)) {
+      console.warn(`[Duplicate Prevention] Blocked duplicate time log creation`);
+      return NextResponse.json(
+        { error: 'Request already in progress, please wait' },
+        { status: 429 }
+      );
     }
 
-    // Time log không cần tạo shift - chỉ ghi nhận giờ công thực tế
-    const timeLog = await prisma.timeLog.create({
-      data: {
-        employeeId,
-        date: new Date(date),
-        actualStart: position === 'OFF' ? '00:00' : actualStart,
-        actualEnd: position === 'OFF' ? '00:00' : actualEnd,
-        position,
-        positionNote,
-        notes,
-        totalHours,
-      },
-      include: {
-        employee: {
-          select: {
-            name: true,
-            code: true,
+    try {
+      // Calculate total hours
+      let totalHours = 0;
+      if (position !== 'OFF' && actualStart && actualEnd) {
+        const [startHour, startMin] = actualStart.split(':').map(Number);
+        const [endHour, endMin] = actualEnd.split(':').map(Number);
+        totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+      }
+
+      // Time log không cần tạo shift - chỉ ghi nhận giờ công thực tế
+      const timeLog = await prisma.timeLog.create({
+        data: {
+          employeeId,
+          date: new Date(date),
+          actualStart: position === 'OFF' ? '00:00' : actualStart,
+          actualEnd: position === 'OFF' ? '00:00' : actualEnd,
+          position,
+          positionNote,
+          notes,
+          totalHours,
+        },
+        include: {
+          employee: {
+            select: {
+              name: true,
+              code: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    // Format date to string for frontend
-    const formattedLog = {
-      ...timeLog,
-      date: timeLog.date.toISOString().split('T')[0],
-    };
+      // Format date to string for frontend
+      const formattedLog = {
+        ...timeLog,
+        date: timeLog.date.toISOString().split('T')[0],
+      };
 
-    return NextResponse.json(formattedLog, { status: 201 });
+      return NextResponse.json(formattedLog, { status: 201 });
+    } finally {
+      releaseLock(lockKey);
+    }
   } catch (error) {
     console.error('Error creating time log:', error);
     return NextResponse.json(

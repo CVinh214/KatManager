@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Simple in-memory lock to prevent duplicate submissions
+const submissionLocks = new Map<string, number>();
+const LOCK_DURATION = 2000; // 2 seconds
+
+function acquireLock(key: string): boolean {
+  const now = Date.now();
+  const existing = submissionLocks.get(key);
+  
+  // Clean up old locks
+  if (existing && now - existing > LOCK_DURATION) {
+    submissionLocks.delete(key);
+  }
+  
+  // Check if locked
+  if (submissionLocks.has(key)) {
+    return false;
+  }
+  
+  // Acquire lock
+  submissionLocks.set(key, now);
+  return true;
+}
+
+function releaseLock(key: string): void {
+  submissionLocks.delete(key);
+}
+
 // GET: Lấy danh sách shift preferences
 export async function GET(request: NextRequest) {
   try {
@@ -63,13 +90,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Nếu không phải nghỉ phép, validate startTime và endTime
-    if (!isOff && (!startTime || !endTime)) {
+    // Create lock key for duplicate prevention
+    const lockKey = `shift-pref:${employeeId}:${date}`;
+    
+    // Try to acquire lock
+    if (!acquireLock(lockKey)) {
+      console.warn(`[Duplicate Prevention] Blocked duplicate shift preference submission for ${lockKey}`);
       return NextResponse.json(
-        { error: 'Missing required fields: startTime and endTime are required for work shifts' },
-        { status: 400 }
+        { error: 'Request already in progress, please wait' },
+        { status: 429 }
       );
     }
+
+    try {
+      // Nếu không phải nghỉ phép, validate startTime và endTime
+      if (!isOff && (!startTime || !endTime)) {
+        return NextResponse.json(
+          { error: 'Missing required fields: startTime and endTime are required for work shifts' },
+          { status: 400 }
+        );
+      }
 
     // If employeeId looks like old localStorage ID (emp-xxx), find real employee by checking all employees
     // This is a temporary fix until we implement proper authentication with database
@@ -107,33 +147,37 @@ export async function POST(request: NextRequest) {
     //   );
     // }
 
-    // Upsert: Create or update if exists
-    const preference = await prisma.shiftPreference.upsert({
-      where: {
-        employeeId_date: {
+      // Upsert: Create or update if exists
+      const preference = await prisma.shiftPreference.upsert({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: new Date(date),
+          },
+        },
+        update: {
+          startTime: isOff ? null : startTime,
+          endTime: isOff ? null : endTime,
+          isOff: isOff || false,
+          notes,
+          status: 'pending', // Reset to pending if updating
+        },
+        create: {
           employeeId,
           date: new Date(date),
+          startTime: isOff ? null : startTime,
+          endTime: isOff ? null : endTime,
+          isOff: isOff || false,
+          notes,
+          status: 'pending',
         },
-      },
-      update: {
-        startTime: isOff ? null : startTime,
-        endTime: isOff ? null : endTime,
-        isOff: isOff || false,
-        notes,
-        status: 'pending', // Reset to pending if updating
-      },
-      create: {
-        employeeId,
-        date: new Date(date),
-        startTime: isOff ? null : startTime,
-        endTime: isOff ? null : endTime,
-        isOff: isOff || false,
-        notes,
-        status: 'pending',
-      },
-    });
+      });
 
-    return NextResponse.json(preference, { status: 201 });
+      return NextResponse.json(preference, { status: 201 });
+    } finally {
+      // Always release lock
+      releaseLock(lockKey);
+    }
   } catch (error) {
     console.error('Error creating shift preference:', error);
     return NextResponse.json(

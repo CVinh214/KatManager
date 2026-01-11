@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
               email: demoUser.email,
               role: demoUser.role,
               employeeId: demoUser.employeeId,
+              avatar: demoUser.employee?.avatar || null,
               employee: demoUser.employee ? {
                 id: demoUser.employee.id,
                 code: demoUser.employee.code,
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         employeeId: user.employeeId,
+        avatar: user.employee?.avatar || null,
         employee: user.employee ? {
           id: user.employee.id,
           code: user.employee.code,

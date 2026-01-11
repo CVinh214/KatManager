@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/layout/sidebar';
 import { useAuth } from '@/hooks/use-auth';
+import { AvatarUpload } from '@/components/ui/avatar-upload';
 import { 
   Users, 
   Calendar, 
@@ -30,6 +31,7 @@ interface Employee {
   code: string;
   employeeRole: string;
   role: string;
+  avatar?: string;
 }
 
 interface Shift {
@@ -67,9 +69,10 @@ interface ShiftPreference {
 }
 
 export default function DashboardPage() {
-  const { user, isHydrated } = useAuth();
+  const { user, isHydrated, updateAvatar } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [shiftPreferences, setShiftPreferences] = useState<ShiftPreference[]>([]);
@@ -77,6 +80,8 @@ export default function DashboardPage() {
 
   // Load all data
   useEffect(() => {
+    if (!user) return;
+    
     const loadData = async () => {
       setLoading(true);
       try {
@@ -107,6 +112,12 @@ export default function DashboardPage() {
 
         if (employeesRes.ok) {
           const data = await employeesRes.json();
+          
+          // Find current employee
+          if (user?.employeeId) {
+            const emp = data.find((e: Employee) => e.id === user.employeeId);
+            setCurrentEmployee(emp || null);
+          }
           setEmployees(data);
         }
 
@@ -132,7 +143,7 @@ export default function DashboardPage() {
     };
 
     loadData();
-  }, []);
+  }, [user?.id, user?.employeeId]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -225,11 +236,26 @@ export default function DashboardPage() {
   return (
     <Sidebar>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        {/* Header */}
+        {/* Header with Avatar */}
         <div className="mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-            {greeting()}, {getEmployeeName()}! 👋
-          </h1>
+          <div className="flex flex-col items-center gap-4 mb-6">
+            {/* Avatar Upload */}
+            <AvatarUpload
+              userId={user.id}
+              employeeId={user.employeeId}
+              currentAvatar={user.avatar || undefined}
+              userName={getEmployeeName()}
+              onAvatarChange={(newAvatar) => {
+                // Update avatar in auth store immediately
+                updateAvatar(newAvatar);
+              }}
+            />
+            
+            {/* Greeting */}
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center">
+              {greeting()}, {getEmployeeName()}! 👋
+            </h1>
+          </div>
         </div>
 
         {loading ? (

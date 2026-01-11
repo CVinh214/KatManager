@@ -9,6 +9,7 @@ import { useShiftStore } from '@/store/shift-store';
 import { ChevronLeft, ChevronRight, X, User, Star } from 'lucide-react';
 import { getWeekDates, formatDateISO, formatDate } from '@/lib/utils';
 import { VietnamHoliday, getHolidaysInRange, getLunarDateText } from '@/lib/vietnam-holidays';
+import { getPositionConfig, getPositionIcon, getPositionStyle, setCustomPositions, COLOR_PALETTE, EMOJI_PICKER } from '@/lib/position-config';
 
 const POSITIONS = ['Cashier', 'Waiter', 'Setup', 'OFF'];
 const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -61,10 +62,13 @@ export default function SchedulePage() {
   const [revenueInput, setRevenueInput] = useState<string>('');
   
   // Custom positions and templates management
-  const [customPositions, setCustomPositions] = useState<string[]>([]);
+  const [customPositions, setCustomPositionsState] = useState<string[]>([]);
+  const [customPositionData, setCustomPositionData] = useState<Array<{name: string; color: string; icon: string}>>([]);
   const [allPositions, setAllPositions] = useState<string[]>(POSITIONS);
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
   const [newPositionName, setNewPositionName] = useState('');
+  const [newPositionColor, setNewPositionColor] = useState('#6366f1');
+  const [newPositionIcon, setNewPositionIcon] = useState('📦');
   
   const [customTemplates, setCustomTemplates] = useState<ShiftTemplate[]>([]);
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
@@ -95,8 +99,13 @@ export default function SchedulePage() {
       if (response.ok) {
         const data = await response.json();
         const positionNames = data.map((p: any) => p.name);
-        setCustomPositions(positionNames);
+        const positionData = data.map((p: any) => ({ name: p.name, color: p.color, icon: p.icon }));
+        setCustomPositionsState(positionNames);
+        setCustomPositionData(positionData);
         setAllPositions([...POSITIONS, ...positionNames]);
+        
+        // Initialize position config helper
+        setCustomPositions(positionData);
       }
     } catch (error) {
       console.error('Error loading custom positions:', error);
@@ -540,12 +549,16 @@ export default function SchedulePage() {
         body: JSON.stringify({
           name: newPositionName.trim(),
           label: newPositionName.trim(),
+          color: newPositionColor,
+          icon: newPositionIcon,
         }),
       });
 
       if (response.ok) {
         await loadCustomPositions();
         setNewPositionName('');
+        setNewPositionColor('#6366f1');
+        setNewPositionIcon('📦');
         setShowAddPositionModal(false);
         alert('✅ Đã thêm vị trí mới thành công!');
       } else {
@@ -697,32 +710,47 @@ export default function SchedulePage() {
               {shifts.length > 0 ? (
                 // Hiển thị tất cả các ca đã xếp
                 <>
-                  {shifts.map((shift, idx) => (
-                    <div
-                      key={idx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCellClick(employee.id, dateStr, 'edit', idx);
-                      }}
-                      className={`text-[10px] sm:text-xs w-full p-0.5 sm:p-1 rounded border cursor-pointer hover:opacity-80 ${
-                        shift.position === 'OFF'
-                          ? 'bg-gray-200 border-gray-400'
-                          : 'bg-green-50 border-green-300'
-                      }`}
-                    >
-                      {shift.position === 'OFF' ? (
-                        <>
-                          <div className="font-semibold text-gray-700 text-center">OFF</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-semibold text-green-800">{shift.position}</div>
-                          <div className="text-green-700">{shift.startTime}-{shift.endTime}</div>
-                          <div className="text-green-600 font-medium">{shift.hours.toFixed(1)}h</div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                  {shifts.map((shift, idx) => {
+                    const config = getPositionConfig(shift.position);
+                    const style = getPositionStyle(shift.position);
+                    const icon = getPositionIcon(shift.position);
+                    
+                    return (
+                      <div
+                        key={idx}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCellClick(employee.id, dateStr, 'edit', idx);
+                        }}
+                        className={`text-[10px] sm:text-xs w-full p-0.5 sm:p-1 rounded border cursor-pointer hover:opacity-80 ${
+                          config.bgColor || ''
+                        } ${config.borderColor || ''}`}
+                        style={style.backgroundColor ? {
+                          backgroundColor: style.backgroundColor,
+                          borderColor: style.borderColor,
+                          color: style.color,
+                        } : {}}
+                      >
+                        {shift.position === 'OFF' ? (
+                          <>
+                            <div className="font-semibold text-center flex items-center justify-center gap-1">
+                              <span>OFF</span>
+                              <span>{icon}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className={`font-semibold flex items-center justify-between gap-1 ${config.textColor || ''}`}>
+                              <span>{shift.position}</span>
+                              <span>{icon}</span>
+                            </div>
+                            <div className={config.textColor || 'text-green-700'}>{shift.startTime}-{shift.endTime}</div>
+                            <div className={`font-medium ${config.textColor || 'text-green-600'}`}>{shift.hours.toFixed(1)}h</div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                   {isManager && (
                     <button
                       onClick={(e) => {
@@ -1331,6 +1359,87 @@ export default function SchedulePage() {
                 </p>
               </div>
               
+              {/* Color Picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Màu sắc <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {COLOR_PALETTE.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setNewPositionColor(color.value)}
+                      className={`h-10 rounded-lg border-2 transition-all ${
+                        newPositionColor === color.value
+                          ? 'border-gray-900 scale-110'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newPositionColor}
+                    onChange={(e) => setNewPositionColor(e.target.value)}
+                    className="h-8 w-16 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-600">Hoặc chọn màu tùy chỉnh</span>
+                </div>
+              </div>
+              
+              {/* Emoji Picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Icon <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-8 gap-1 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {EMOJI_PICKER.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setNewPositionIcon(emoji)}
+                      className={`text-2xl h-10 w-10 rounded hover:bg-gray-100 transition-all ${
+                        newPositionIcon === emoji
+                          ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                          : ''
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={newPositionIcon}
+                    onChange={(e) => setNewPositionIcon(e.target.value.slice(0, 2))}
+                    placeholder="Hoặc nhập emoji từ bàn phím"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+              
+              {/* Preview */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border-2 border-indigo-200">
+                <div className="text-xs font-medium text-gray-600 mb-2">Xem trước:</div>
+                <div 
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-semibold text-sm"
+                  style={{
+                    backgroundColor: `${newPositionColor}20`,
+                    borderColor: `${newPositionColor}80`,
+                    color: newPositionColor
+                  }}
+                >
+                  <span>{newPositionName || 'Tên vị trí'}</span>
+                  <span className="text-xl">{newPositionIcon}</span>
+                </div>
+              </div>
+              
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
                 <div className="font-semibold text-blue-900 mb-1">Các vị trí hiện có:</div>
                 <div className="text-blue-800 flex flex-wrap gap-1">
@@ -1353,6 +1462,8 @@ export default function SchedulePage() {
                 onClick={() => {
                   setShowAddPositionModal(false);
                   setNewPositionName('');
+                  setNewPositionColor('#6366f1');
+                  setNewPositionIcon('📦');
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-900"
               >

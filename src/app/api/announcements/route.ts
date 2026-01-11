@@ -3,6 +3,30 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Simple in-memory lock to prevent duplicate submissions
+const submissionLocks = new Map<string, number>();
+const LOCK_DURATION = 2000; // 2 seconds
+
+function acquireLock(key: string): boolean {
+  const now = Date.now();
+  const existing = submissionLocks.get(key);
+  
+  if (existing && now - existing > LOCK_DURATION) {
+    submissionLocks.delete(key);
+  }
+  
+  if (submissionLocks.has(key)) {
+    return false;
+  }
+  
+  submissionLocks.set(key, now);
+  return true;
+}
+
+function releaseLock(key: string): void {
+  submissionLocks.delete(key);
+}
+
 // GET - Lấy danh sách thông báo
 export async function GET(request: NextRequest) {
   try {
@@ -34,16 +58,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const announcement = await prisma.announcement.create({
-      data: {
-        title,
-        content,
-        imageUrl,
-        createdBy,
-      },
-    });
+    // Create lock key for duplicate prevention
+    const lockKey = `announcement:${createdBy}:${title.substring(0, 20)}`;
+    
+    if (!acquireLock(lockKey)) {
+      console.warn(`[Duplicate Prevention] Blocked duplicate announcement creation`);
+      return NextResponse.json(
+        { error: 'Request already in progress, please wait' },
+        { status: 429 }
+      );
+    }
 
-    return NextResponse.json(announcement, { status: 201 });
+    try {
+      const announcement = await prisma.announcement.create({
+        data: {
+          title,
+          content,
+          imageUrl,
+          createdBy,
+        },
+      });
+
+      return NextResponse.json(announcement, { status: 201 });
+    } finally {
+      releaseLock(lockKey);
+    }
   } catch (error) {
     console.error('Error creating announcement:', error);
     return NextResponse.json(

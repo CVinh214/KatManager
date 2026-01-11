@@ -64,7 +64,8 @@ const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 export default function TimeLogsPage() {
   const { user, isHydrated } = useAuth();
-  const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
+  const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]); // Weekly time logs for table
+  const [monthlyTimeLogs, setMonthlyTimeLogs] = useState<TimeLog[]>([]); // Monthly time logs for stats
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
@@ -186,7 +187,8 @@ export default function TimeLogsPage() {
 
         if (response.ok) {
           const data = await response.json();
-          // Use this data for monthly stats only, keep weekDates logs for table
+          // Save monthly data for statistics
+          setMonthlyTimeLogs(data);
         }
       } catch (error) {
         console.error('Error loading monthly time logs:', error);
@@ -208,11 +210,12 @@ export default function TimeLogsPage() {
       .reduce((sum, log) => sum + log.totalHours, 0);
   };
 
-  // Calculate monthly statistics per employee
+  // Calculate monthly statistics per employee (based on full month data, not weekly)
   const monthlyStats = useMemo(() => {
     const stats: Record<string, { totalHours: number; positions: Record<string, number> }> = {};
     
-    timeLogs.forEach(log => {
+    // Use monthlyTimeLogs instead of timeLogs for accurate monthly statistics
+    monthlyTimeLogs.forEach(log => {
       if (!stats[log.employeeId]) {
         stats[log.employeeId] = { totalHours: 0, positions: {} };
       }
@@ -222,7 +225,7 @@ export default function TimeLogsPage() {
     });
     
     return stats;
-  }, [timeLogs]);
+  }, [monthlyTimeLogs]);
 
   // Handle cell click - open modal
   const handleCellClick = (employeeId: string, date: string) => {

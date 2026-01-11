@@ -26,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
               email: data.user.email,
               role: data.user.role,
               employeeId: data.user.employeeId,
+              avatar: data.user.avatar,
             };
             set({ user, isAuthenticated: true });
             return true;
@@ -40,6 +41,12 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         set({ user: null, isAuthenticated: false });
+      },
+      updateAvatar: (avatar: string) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({ user: { ...currentUser, avatar } });
+        }
       },
     }),
     {

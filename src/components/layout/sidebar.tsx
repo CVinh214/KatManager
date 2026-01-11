@@ -14,11 +14,9 @@ import {
   X,
   MoreHorizontal,
   Heart,
-  Image,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { BackgroundSettings } from './background-settings';
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -30,30 +28,6 @@ export default function Sidebar({ children }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
-  const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-
-  // Load background image
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    const loadBackground = () => {
-      const savedBg = localStorage.getItem(`background_${user.id}`);
-      setBackgroundImage(savedBg);
-    };
-
-    loadBackground();
-
-    // Listen for background changes
-    const handleBackgroundChange = (e: CustomEvent) => {
-      setBackgroundImage(e.detail);
-    };
-
-    window.addEventListener('backgroundChanged', handleBackgroundChange as EventListener);
-    return () => {
-      window.removeEventListener('backgroundChanged', handleBackgroundChange as EventListener);
-    };
-  }, [user?.id]);
 
   const menuItems = [
     {
@@ -343,19 +317,9 @@ export default function Sidebar({ children }: SidebarProps) {
                     <button
                       onClick={() => {
                         setShowMoreMenu(false);
-                        setShowBackgroundSettings(true);
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-indigo-600 hover:bg-indigo-50 transition-colors border-t border-gray-100"
-                    >
-                      <Image size={18} />
-                      <span className="text-sm">Đổi hình nền</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMoreMenu(false);
                         setShowDonate(true);
                       }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-pink-600 hover:bg-pink-50 transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 w-full text-pink-600 hover:bg-pink-50 transition-colors border-t border-gray-100"
                     >
                       <Heart size={18} />
                       <span className="text-sm">Dự án nuôi tôi</span>
@@ -379,33 +343,11 @@ export default function Sidebar({ children }: SidebarProps) {
       </nav>
 
       {/* Main content */}
-      <main 
-        className="lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0 relative"
-        style={{
-          backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed',
-        }}
-      >
-        <div 
-          className="p-4 lg:p-6"
-          style={{
-            minHeight: '100vh',
-            backdropFilter: backgroundImage ? 'blur(5px)' : undefined,
-          }}
-        >
+      <main className="lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
+        <div className="p-4 lg:p-6" style={{ minHeight: '100vh' }}>
           {children}
         </div>
       </main>
-
-      {/* Background Settings Modal */}
-      {showBackgroundSettings && user && (
-        <BackgroundSettings
-          onClose={() => setShowBackgroundSettings(false)}
-          userId={user.id}
-        />
-      )}
 
       {/* Donate Modal */}
       {showDonate && (

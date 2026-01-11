@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export function useAuth() {
-  const { user, isAuthenticated, login, logout } = useAuthStore();
+  const { user, isAuthenticated, login, logout, updateAvatar } = useAuthStore();
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -25,6 +25,7 @@ export function useAuth() {
     isHydrated,
     login,
     logout: handleLogout,
+    updateAvatar,
   };
 }
 
