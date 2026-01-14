@@ -107,3 +107,5 @@ TESTING_CHECKLIST.md
 USER_GUIDE.txt
 run-performance-migration.ps1
 prisma.config.ts.bak
+deploy.ps1
+deploy.sh

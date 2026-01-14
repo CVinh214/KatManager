@@ -204,8 +204,8 @@ export default function SchedulePage() {
       if (shift) clHours += shift.hours;
     });
 
-    // Công thức: ((FT hours * 27000) + (CL hours * 22000)) * 100 / revenue
-    const laborCost = (ftHours * 27000) + (clHours * 22000);
+    // Công thức: ((FT hours * 30000) + (CL hours * 24000)) * 100 / revenue
+    const laborCost = (ftHours * 30000) + (clHours * 24000);
     const percentage = (laborCost * 100) / revenue;
 
     return percentage;
@@ -1294,7 +1294,7 @@ export default function SchedulePage() {
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
                 <div className="font-semibold text-blue-900 mb-2">Công thức:</div>
                 <div className="text-blue-800 text-xs space-y-1">
-                  <div>• FT: <strong>27k/giờ</strong> | CL: <strong>22k/giờ</strong></div>
+                  <div>• FT: <strong>30k/giờ</strong> | CL: <strong>24k/giờ</strong></div>
                 </div>
               </div>
             </div>
