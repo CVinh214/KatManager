@@ -43,9 +43,13 @@ export async function GET(request: NextRequest) {
     }
     
     if (startDate && endDate) {
+      // Parse dates in local timezone to avoid offset issues
+      const [startY, startM, startD] = startDate.split('-').map(Number);
+      const [endY, endM, endD] = endDate.split('-').map(Number);
+      
       where.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: new Date(startY, startM - 1, startD, 0, 0, 0, 0),
+        lte: new Date(endY, endM - 1, endD, 23, 59, 59, 999),
       };
     }
 

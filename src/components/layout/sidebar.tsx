@@ -18,6 +18,16 @@ import {
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
+interface Employee {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface SidebarProps {
+  children: React.ReactNode;
+}
+
 interface SidebarProps {
   children: React.ReactNode;
 }
@@ -28,6 +38,21 @@ export default function Sidebar({ children }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
+
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+
+  useEffect(() => {
+    if (user?.employeeId) {
+      fetch(`/api/employees?id=${user.employeeId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && !data.error) {
+            setCurrentEmployee(data);
+          }
+        })
+        .catch(err => console.error('Failed to load employee:', err));
+    }
+  }, [user?.employeeId]);
 
   const menuItems = [
     {
@@ -98,13 +123,13 @@ export default function Sidebar({ children }: SidebarProps) {
         className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 safe-area-top"
       >
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-indigo-600">Yêu cả nhà 💞</h1>
+          <h1 className="text-lg font-bold text-indigo-600">（づ￣3￣）づ╭❤️～</h1>
           <div className="flex items-center gap-2">
-            {user && (
+            {/* {user && (
               <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                {user.role === 'manager' ? 'Quản lý' : 'NV'}
+                {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
               </span>
-            )}
+            )} */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-lg hover:bg-gray-100"
@@ -118,18 +143,21 @@ export default function Sidebar({ children }: SidebarProps) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 transition-transform',
+          'fixed top-0 left-0 z-40 h-screen w-70 bg-white border-r border-gray-200 transition-transform',
           'hidden lg:block'
         )}
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-indigo-600">Yêu cả nhà 💞</h1>
+            <h1 className="text-2xl font-bold text-indigo-600">（づ￣3￣）づ╭❤️～</h1>
             {user && (
               <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {currentEmployee?.name || user.email}
+                </p>
                 <p className="text-xs text-gray-600 capitalize mt-1">
                   {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
+                  {currentEmployee?.code && ` • ${currentEmployee.code}`}
                 </p>
               </div>
             )}
@@ -163,7 +191,7 @@ export default function Sidebar({ children }: SidebarProps) {
               className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-pink-600 hover:bg-pink-50 transition-colors"
             >
               <Heart size={20} />
-              <span>Dự án nuôi tôi</span>
+              <span>Nuôi tôi</span>
             </button>
             <button
               onClick={logout}
@@ -189,9 +217,12 @@ export default function Sidebar({ children }: SidebarProps) {
                 <div>
                   {user && (
                     <>
-                      <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {currentEmployee?.name || user.email}
+                      </p>
                       <p className="text-xs text-gray-600">
                         {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
+                        {currentEmployee?.code && ` • ${currentEmployee.code}`}
                       </p>
                     </>
                   )}
@@ -236,7 +267,7 @@ export default function Sidebar({ children }: SidebarProps) {
                   className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-pink-600 hover:bg-pink-50 transition-colors"
                 >
                   <Heart size={20} />
-                  <span>Dự án nuôi tôi</span>
+                  <span>Nuôi tôi</span>
                 </button>
                 <button
                   onClick={logout}
@@ -322,7 +353,7 @@ export default function Sidebar({ children }: SidebarProps) {
                       className="flex items-center gap-3 px-4 py-3 w-full text-pink-600 hover:bg-pink-50 transition-colors border-t border-gray-100"
                     >
                       <Heart size={18} />
-                      <span className="text-sm">Dự án nuôi tôi</span>
+                      <span className="text-sm">Nuôi tôi</span>
                     </button>
                     <button
                       onClick={() => {
@@ -368,7 +399,7 @@ export default function Sidebar({ children }: SidebarProps) {
             
             <div className="text-center mb-6">
               <Heart size={48} className="text-pink-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Dự án nuôi tôi</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Nuôi tôi</h2>
               <p className="text-gray-600">Cảm ơn bạn đã ủng hộ dự án! 💖</p>
             </div>
 

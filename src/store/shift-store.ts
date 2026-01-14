@@ -46,7 +46,9 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       
-      const response = await fetch(`/api/shifts?${params}`);
+      const response = await fetch(`/api/shifts?${params}`,
+        { cache: 'no-store' }
+      );
       if (response.ok) {
         const data = await response.json();
         // Transform data to match store format

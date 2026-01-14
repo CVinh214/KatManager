@@ -6,7 +6,7 @@
 import { SimpleCache, RequestDeduplicator } from './performance';
 
 // Global instances
-const cache = new SimpleCache(30000); // 30 seconds cache
+const cache = new SimpleCache(5000); // 5 seconds cache (reduced for better real-time updates)
 const deduplicator = new RequestDeduplicator();
 
 interface ApiClientOptions extends Omit<RequestInit, 'cache'> {
@@ -24,7 +24,7 @@ export async function apiClient<T = any>(
 ): Promise<T> {
   const {
     cache: useCache = true,
-    cacheTTL = 30000,
+    cacheTTL = 5000, // Reduced to 5 seconds for better real-time performance
     deduplicate = true,
     ...fetchOptions
   } = options;

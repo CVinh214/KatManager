@@ -77,7 +77,7 @@ export default function DashboardPage() {
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [shiftPreferences, setShiftPreferences] = useState<ShiftPreference[]>([]);
   const [loading, setLoading] = useState(true);
-
+  
   // Load all data
   useEffect(() => {
     if (!user) return;
@@ -144,7 +144,7 @@ export default function DashboardPage() {
 
     loadData();
   }, [user?.id, user?.employeeId]);
-
+  
   // Calculate stats
   const stats = useMemo(() => {
     const today = formatDateISO(new Date());
@@ -275,20 +275,20 @@ export default function DashboardPage() {
                     color="blue"
                     href="/employees"
                   />
-                  <StatCard
+                  {/* <StatCard
                     title="Ca hôm nay"
                     value={stats.todayShifts}
                     icon={Calendar}
                     color="green"
                     href="/schedule"
-                  />
-                  <StatCard
+                  /> */}
+                  {/* <StatCard
                     title="Giờ công tuần"
                     value={`${stats.weekHours}h`}
                     icon={Clock}
                     color="purple"
                     href="/time-logs"
-                  />
+                  /> */}
                   <StatCard
                     title="Chờ duyệt"
                     value={stats.pendingPreferences}
@@ -307,20 +307,20 @@ export default function DashboardPage() {
                     color="blue"
                     href="/schedule"
                   />
-                  <StatCard
+                  {/* <StatCard
                     title="Giờ làm hôm nay"
                     value={`${stats.todayWorkHours}h`}
                     icon={Clock}
                     color="green"
                     href="/schedule"
-                  />
-                  <StatCard
+                  /> */}
+                  {/* <StatCard
                     title="Đăng ký chờ"
                     value={shiftPreferences.filter(p => p.employeeId === user.employeeId && p.status === 'pending').length}
                     icon={AlertCircle}
                     color="purple"
                     href="/employee-schedule"
-                  />
+                  /> */}
                   <StatCard
                     title="Thông báo"
                     value={stats.totalAnnouncements}
@@ -376,7 +376,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Today's Schedule / My Schedule */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              {/* <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
                   <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <Calendar size={18} className="text-green-600" />
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                     />
                   )}
                 </div>
-              </div>
+              </div> */}
 
               {/* Manager: Pending Approvals */}
               {isManager && (
@@ -409,13 +409,16 @@ export default function DashboardPage() {
                       <AlertCircle size={18} className="text-orange-600" />
                       Chờ duyệt
                     </h2>
-                    <Link 
+                    {PendingPreferences.length > 0 && (
+                      <Link 
                       href="/schedule" 
                       className="text-indigo-600 hover:text-indigo-800 text-xs sm:text-sm flex items-center gap-1"
                     >
                       Xử lý
                       <ChevronRight size={14} />
                     </Link>
+                    )
+                    }
                   </div>
                   <div className="p-3 sm:p-4">
                     <PendingPreferences preferences={shiftPreferences} />
@@ -424,7 +427,7 @@ export default function DashboardPage() {
               )}
 
               {/* Recent Time Logs */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              {/* <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
                   <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <Clock size={18} className="text-purple-600" />
@@ -443,7 +446,7 @@ export default function DashboardPage() {
                     logs={isManager ? timeLogs : timeLogs.filter(l => l.employeeId === user.employeeId)} 
                   />
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Quick Actions */}
@@ -733,6 +736,15 @@ function PendingPreferences({ preferences }: { preferences: ShiftPreference[] })
       )}
     </div>
   );
+}
+
+function getMondayOfWeek(dateStr: string) {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1 - day); // CN thì lùi về T2 trước đó
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diff);
+  return monday.toISOString().split('T')[0];
 }
 
 function RecentTimeLogs({ logs }: { logs: TimeLog[] }) {

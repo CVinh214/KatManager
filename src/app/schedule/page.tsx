@@ -10,6 +10,8 @@ import { ChevronLeft, ChevronRight, X, User, Star } from 'lucide-react';
 import { getWeekDates, formatDateISO, formatDate } from '@/lib/utils';
 import { VietnamHoliday, getHolidaysInRange, getLunarDateText } from '@/lib/vietnam-holidays';
 import { getPositionConfig, getPositionIcon, getPositionStyle, setCustomPositions, COLOR_PALETTE, EMOJI_PICKER } from '@/lib/position-config';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 const POSITIONS = ['Cashier', 'Waiter', 'Setup', 'OFF'];
 const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -42,11 +44,13 @@ interface ScheduleShift {
   hours: number;
 }
 
-export default function SchedulePage() {
+function ScheduleContent() {
   const router = useRouter();
   const { user, isHydrated } = useAuth();
   const { employees, loadEmployees } = useEmployeeStore();
   const { shiftPreferences, getShiftPreferencesByDateRange, isRegistrationEnabled, setRegistrationEnabled, updateShiftPreference, loadShiftPreferences, loadShifts } = useShiftStore();
+  const searchParams = useSearchParams();
+  const weekParam = searchParams.get('week');
   const [currentWeek, setCurrentWeek] = useState<Date | null>(null);
   const [scheduleShifts, setScheduleShifts] = useState<ScheduleShift[]>([]);
   const [selectedCell, setSelectedCell] = useState<{ employeeId: string; date: string; mode: 'add' | 'edit'; shiftIndex?: number } | null>(null);
@@ -136,7 +140,13 @@ export default function SchedulePage() {
       console.log('Holidays in week:', weekHolidays);
     }
   }, [weekDates]);
-
+  useEffect(() => {
+    if (weekParam) {
+      setCurrentWeek(new Date(weekParam));
+    } else {
+      setCurrentWeek(new Date());
+    }
+  }, [weekParam]);
   // Load revenue estimates when week changes
   useEffect(() => {
     if (weekDates.length > 0) {
@@ -1564,5 +1574,13 @@ export default function SchedulePage() {
         </div>
       )}
     </Sidebar>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div>Đang tải...</div>}>
+      <ScheduleContent />
+    </Suspense>
   );
 }

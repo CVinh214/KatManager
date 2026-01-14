@@ -44,9 +44,13 @@ export async function GET(request: NextRequest) {
 
     // Optional: filter by date range
     if (startDate && endDate) {
+      // Parse dates in local timezone to avoid offset issues
+      const [startY, startM, startD] = startDate.split('-').map(Number);
+      const [endY, endM, endD] = endDate.split('-').map(Number);
+      
       where.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: new Date(startY, startM - 1, startD, 0, 0, 0, 0),
+        lte: new Date(endY, endM - 1, endD, 23, 59, 59, 999),
       };
     }
 
@@ -122,10 +126,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Time log không cần tạo shift - chỉ ghi nhận giờ công thực tế
+      const [y, m, d] = date.split('-').map(Number);
       const timeLog = await prisma.timeLog.create({
         data: {
           employeeId,
-          date: new Date(date),
+          date: new Date(y, m - 1, d, 12, 0, 0, 0),
           actualStart: position === 'OFF' ? '00:00' : actualStart,
           actualEnd: position === 'OFF' ? '00:00' : actualEnd,
           position,

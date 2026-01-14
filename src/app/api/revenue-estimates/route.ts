@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
 
     // Lấy doanh thu cho một ngày cụ thể
     if (date) {
+      const [y, m, d] = date.split('-').map(Number);
       const estimate = await prisma.revenueEstimate.findUnique({
-        where: { date: new Date(date) },
+        where: { date: new Date(y, m - 1, d, 12, 0, 0, 0) },
       });
       
       return NextResponse.json(estimate);
@@ -20,11 +21,15 @@ export async function GET(request: NextRequest) {
 
     // Lấy doanh thu trong khoảng thời gian
     if (startDate && endDate) {
+      // Parse dates in local timezone to avoid offset issues
+      const [startY, startM, startD] = startDate.split('-').map(Number);
+      const [endY, endM, endD] = endDate.split('-').map(Number);
+      
       const estimates = await prisma.revenueEstimate.findMany({
         where: {
           date: {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
+            gte: new Date(startY, startM - 1, startD, 0, 0, 0, 0),
+            lte: new Date(endY, endM - 1, endD, 23, 59, 59, 999),
           },
         },
         orderBy: { date: 'asc' },
@@ -63,10 +68,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert: tạo mới hoặc cập nhật nếu đã tồn tại
+    const [y, m, d] = date.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
+    
     const estimate = await prisma.revenueEstimate.upsert({
-      where: { date: new Date(date) },
+      where: { date: dateObj },
       create: {
-        date: new Date(date),
+        date: dateObj,
         estimatedRevenue: parseFloat(estimatedRevenue),
         notes,
       },
@@ -101,11 +109,14 @@ export async function PUT(request: NextRequest) {
     }
 
     // Cập nhật cho nhiều ngày cùng lúc
-    const promises = dates.map((date: string) =>
-      prisma.revenueEstimate.upsert({
-        where: { date: new Date(date) },
+    const promises = dates.map((date: string) => {
+      const [y, m, d] = date.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
+      
+      return prisma.revenueEstimate.upsert({
+        where: { date: dateObj },
         create: {
-          date: new Date(date),
+          date: dateObj,
           estimatedRevenue: parseFloat(estimatedRevenue),
           notes,
         },
@@ -114,8 +125,8 @@ export async function PUT(request: NextRequest) {
           notes,
           updatedAt: new Date(),
         },
-      })
-    );
+      });
+    });
 
     const results = await Promise.all(promises);
 
@@ -146,8 +157,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const [y, m, d] = date.split('-').map(Number);
     await prisma.revenueEstimate.delete({
-      where: { date: new Date(date) },
+      where: { date: new Date(y, m - 1, d, 12, 0, 0, 0) },
     });
 
     return NextResponse.json({ success: true });

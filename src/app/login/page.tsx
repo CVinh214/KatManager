@@ -13,6 +13,11 @@ export default function LoginPage() {
   const [showDonate, setShowDonate] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -21,6 +26,7 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
