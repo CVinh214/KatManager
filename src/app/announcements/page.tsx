@@ -165,8 +165,6 @@ export default function AnnouncementsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) return;
-
     try {
       const response = await fetch(`/api/announcements?id=${id}`, {
         method: 'DELETE',
