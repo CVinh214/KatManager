@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; 
+import { PrismaClient } from '@prisma/client';
 import { sendPushToAllEmployees } from '@/lib/push-notification';
+
+const prisma = new PrismaClient();
 
 // Simple in-memory lock to prevent duplicate submissions
 const submissionLocks = new Map<string, number>();
