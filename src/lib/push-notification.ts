@@ -1,7 +1,5 @@
+import { prisma } from '@/lib/prisma';
 import webpush from 'web-push';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 // Setup VAPID
 webpush.setVapidDetails(
