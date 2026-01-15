@@ -77,6 +77,8 @@ export default function PushNotificationSubscriber() {
       }
     } catch (error) {
       console.error('Permission error:', error);
+    } finally {
+      setShowPrompt(false);
     }
   };
 
@@ -93,7 +95,7 @@ export default function PushNotificationSubscriber() {
               Bật thông báo
             </h3>
             <p className="text-sm text-gray-600 mb-3">
-              Nhận thông báo khi có announcement mới từ quản lý
+              BẮT BUỘC BẬT ĐỂ NHẬN THÔNG BÁO TỪ QUẢN LÝ!
             </p>
             <div className="flex gap-2">
               <button
@@ -103,7 +105,7 @@ export default function PushNotificationSubscriber() {
                 Bật ngay
               </button>
               <button
-                onClick={() => setShowPrompt(false)}
+                onClick={handleEnableNotifications}
                 className="px-4 py-2 text-gray-600 text-sm hover:bg-gray-100 rounded-lg"
               >
                 Để sau
