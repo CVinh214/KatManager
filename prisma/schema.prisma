@@ -18,7 +18,8 @@ model User {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   employee   Employee? @relation(fields: [employeeId], references: [id])
-
+  pushSubscriptions PushSubscription[]
+  
   @@map("users")
 }
 
@@ -173,6 +174,20 @@ model Announcement {
 
   @@index([createdAt])
   @@map("announcements")
+}
+
+model PushSubscription {
+  id       String   @id @default(uuid())
+  userId   String   
+  endpoint String   @unique
+  p256dh   String   // encryption key
+  auth     String   // auth secret
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 enum Role {

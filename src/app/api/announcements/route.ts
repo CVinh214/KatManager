@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendPushToAllEmployees } from '@/lib/push-notification';
 
 const prisma = new PrismaClient();
 
@@ -50,7 +51,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, imageUrl, createdBy } = body;
 
-    // Validation
     if (!title || !content || !createdBy) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create lock key for duplicate prevention
     const lockKey = `announcement:${createdBy}:${title.substring(0, 20)}`;
     
     if (!acquireLock(lockKey)) {
@@ -78,6 +77,15 @@ export async function POST(request: NextRequest) {
           createdBy,
         },
       });
+
+      // 🔔 GỬI PUSH NOTIFICATION (async, không chặn response)
+      sendPushToAllEmployees({
+        title: '📢 Biến động số dư',
+        body: title.substring(0, 100),
+        icon: '/icon-192.png',
+        url: '/announcements',
+        tag: `announcement-${announcement.id}`,
+      }).catch((err) => console.error('Push error:', err));
 
       return NextResponse.json(announcement, { status: 201 });
     } finally {
