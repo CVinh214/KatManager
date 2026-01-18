@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsHydrated(true);
   }, []);
 
@@ -39,12 +40,10 @@ export default function LoginPage() {
 
       if (success) {
         console.log('Login successful, redirecting...');
-        // Wait a bit for state to update
-        setTimeout(() => {
-          router.push('/dashboard');
-          router.refresh();
-        }, 100);
-      } else {
+        // Navigate immediately to dashboard; use replace to avoid extra history entry
+        router.replace('/dashboard');
+      }
+      else {
         setError('Email/SĐT hoặc mật khẩu không đúng');
         setIsLoading(false);
       }

@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employeeId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const limit = parseInt(searchParams.get('limit') || '0', 10) || undefined;
+    const offset = parseInt(searchParams.get('offset') || '0', 10) || undefined;
 
     const where: any = {};
     
@@ -68,6 +70,8 @@ export async function GET(request: NextRequest) {
       orderBy: {
         date: 'asc',
       },
+      ...(limit ? { take: limit } : {}),
+      ...(offset ? { skip: offset } : {}),
     });
 
     return NextResponse.json(shifts);

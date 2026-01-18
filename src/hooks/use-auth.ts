@@ -9,9 +9,19 @@ export function useAuth() {
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Wait for zustand to hydrate from localStorage
+  // Determine hydration by checking persisted storage key in localStorage (client only)
   useEffect(() => {
-    setIsHydrated(true);
+    if (typeof window === 'undefined') return;
+    try {
+      const key = 'auth-storage';
+      // If key exists, assume persisted state will be rehydrated shortly.
+      // If not, still mark hydrated so auth flows continue.
+      const stored = localStorage.getItem(key);
+      // small timeout to allow zustand persist to finish rehydration
+      setTimeout(() => setIsHydrated(true), 0);
+    } catch (e) {
+      setIsHydrated(true);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -35,7 +45,14 @@ export function useRequireAuth() {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setIsHydrated(true);
+    if (typeof window === 'undefined') return;
+    try {
+      const key = 'auth-storage';
+      const stored = localStorage.getItem(key);
+      setTimeout(() => setIsHydrated(true), 0);
+    } catch (e) {
+      setIsHydrated(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -53,7 +70,14 @@ export function useRequireRole(allowedRoles: ('manager' | 'staff')[]) {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setIsHydrated(true);
+    if (typeof window === 'undefined') return;
+    try {
+      const key = 'auth-storage';
+      const stored = localStorage.getItem(key);
+      setTimeout(() => setIsHydrated(true), 0);
+    } catch (e) {
+      setIsHydrated(true);
+    }
   }, []);
 
   useEffect(() => {

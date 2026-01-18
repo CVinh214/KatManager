@@ -39,16 +39,21 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
   },
 
   // Load shifts from API
-  loadShifts: async (employeeId?: string, startDate?: string, endDate?: string) => {
+  loadShifts: async (
+    employeeId?: string,
+    startDate?: string,
+    endDate?: string,
+    opts?: { limit?: number; offset?: number; append?: boolean }
+  ) => {
     try {
       const params = new URLSearchParams();
       if (employeeId) params.append('employeeId', employeeId);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
-      
-      const response = await fetch(`/api/shifts?${params}`,
-        { cache: 'no-store' }
-      );
+      if (opts?.limit) params.append('limit', String(opts.limit));
+      if (opts?.offset) params.append('offset', String(opts.offset));
+
+      const response = await fetch(`/api/shifts?${params.toString()}`, { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         // Transform data to match store format
@@ -64,7 +69,12 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
           createdAt: new Date(s.createdAt),
           updatedAt: new Date(s.updatedAt),
         }));
-        set({ shifts });
+
+        if (opts?.append) {
+          set((state) => ({ shifts: [...state.shifts, ...shifts] }));
+        } else {
+          set({ shifts });
+        }
       }
     } catch (error) {
       console.error('Failed to load shifts:', error);
@@ -97,6 +107,22 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
     set((state) => ({
       shifts: state.shifts.filter((shift) => shift.id !== id),
     }));
+  },
+
+  // Upsert a shift object received from server (keep server id and timestamps)
+  upsertShift: (shift: Shift) => {
+    set((state) => {
+      const exists = state.shifts.some(s => s.id === shift.id);
+      if (exists) {
+        return { shifts: state.shifts.map(s => s.id === shift.id ? shift : s) };
+      }
+      return { shifts: [...state.shifts, shift] };
+    });
+  },
+
+  // Remove shift by id (server deleted)
+  removeShift: (id: string) => {
+    set((state) => ({ shifts: state.shifts.filter(s => s.id !== id) }));
   },
   
   getShiftsByEmployee: (employeeId) => {

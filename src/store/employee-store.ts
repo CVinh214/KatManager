@@ -16,9 +16,20 @@ export const useEmployeeStore = create<EmployeeState>()((set, get) => ({
   employees: [],
   
   // Load employees from API
-  loadEmployees: async () => {
+  loadEmployees: async (opts?: { role?: string; search?: string; limit?: number; offset?: number; append?: boolean }) => {
     try {
-      const response = await fetch('/api/employees');
+      const role = opts?.role ?? 'staff';
+      const limit = typeof opts?.limit === 'number' ? opts!.limit : 50;
+      const offset = typeof opts?.offset === 'number' ? opts!.offset : 0;
+      const search = opts?.search;
+
+      const params = new URLSearchParams();
+      if (role) params.append('role', role);
+      if (search) params.append('search', search);
+      if (limit) params.append('limit', String(limit));
+      if (offset) params.append('offset', String(offset));
+
+      const response = await fetch(`/api/employees?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         const employees = data.map((emp: any) => ({
@@ -32,9 +43,14 @@ export const useEmployeeStore = create<EmployeeState>()((set, get) => ({
           avatar: emp.avatar,
           createdAt: new Date(emp.createdAt),
         }));
-        set({ employees });
-        console.log('✅ Loaded employees from database:', employees.length, 'employees');
-        console.log('Sample employee IDs:', employees.slice(0, 3).map((e: Employee) => ({ id: e.id, code: e.code, name: e.name })));
+
+        if (opts?.append) {
+          set((state) => ({ employees: [...state.employees, ...employees] }));
+        } else {
+          set({ employees });
+        }
+
+        console.log('✅ Loaded employees from database:', employees.length, 'employees', opts?.append ? '(appended)' : '');
       } else {
         console.error('❌ Failed to load employees:', response.status);
       }

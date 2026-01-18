@@ -77,6 +77,8 @@ export default function DashboardPage() {
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [shiftPreferences, setShiftPreferences] = useState<ShiftPreference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [employeesOffset, setEmployeesOffset] = useState(0);
+  const EMPLOYEES_PAGE_LIMIT = 50;
   
   // Load all data
   useEffect(() => {
@@ -99,7 +101,8 @@ export default function DashboardPage() {
           preferencesRes,
         ] = await Promise.all([
           fetch('/api/announcements'),
-          fetch('/api/employees'),
+          // Load staff only to reduce payload (first page)
+          fetch(`/api/employees?role=staff&limit=${EMPLOYEES_PAGE_LIMIT}&offset=0`),
           fetch(`/api/shifts?startDate=${startDate}&endDate=${endDate}`),
           fetch(`/api/time-logs?startDate=${startDate}&endDate=${endDate}`),
           fetch(`/api/shift-preferences?startDate=${startDate}&endDate=${endDate}`),
@@ -112,13 +115,14 @@ export default function DashboardPage() {
 
         if (employeesRes.ok) {
           const data = await employeesRes.json();
-          
+
           // Find current employee
           if (user?.employeeId) {
             const emp = data.find((e: Employee) => e.id === user.employeeId);
             setCurrentEmployee(emp || null);
           }
           setEmployees(data);
+          setEmployeesOffset(data.length);
         }
 
         if (shiftsRes.ok) {
@@ -145,6 +149,20 @@ export default function DashboardPage() {
     loadData();
   }, [user?.id, user?.employeeId]);
   
+  // Load next page of employees (lazy-load)
+  const loadMoreEmployees = async () => {
+    try {
+      const res = await fetch(`/api/employees?role=staff&limit=${EMPLOYEES_PAGE_LIMIT}&offset=${employeesOffset}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmployees((prev) => [...prev, ...data]);
+        setEmployeesOffset((prev) => prev + data.length);
+      }
+    } catch (err) {
+      console.error('Failed to load more employees', err);
+    }
+  };
+
   // Calculate stats
   const stats = useMemo(() => {
     const today = formatDateISO(new Date());
@@ -293,6 +311,7 @@ export default function DashboardPage() {
                     title="Chờ duyệt"
                     value={stats.pendingPreferences}
                     icon={AlertCircle}
+                    
                     color="orange"
                     href="/schedule"
                     highlight={stats.pendingPreferences > 0}
@@ -300,13 +319,13 @@ export default function DashboardPage() {
                 </>
               ) : (
                 <>
-                  <StatCard
+                  {/* <StatCard
                     title="Ca tuần này"
                     value={shifts.filter(s => s.employeeId === user.employeeId).length}
                     icon={Calendar}
                     color="blue"
                     href="/schedule"
-                  />
+                  /> */}
                   {/* <StatCard
                     title="Giờ làm hôm nay"
                     value={`${stats.todayWorkHours}h`}
@@ -321,18 +340,18 @@ export default function DashboardPage() {
                     color="purple"
                     href="/employee-schedule"
                   /> */}
-                  <StatCard
+                  {/* <StatCard
                     title="Thông báo"
                     value={stats.totalAnnouncements}
                     icon={Bell}
                     color="orange"
                     href="/announcements"
-                  />
+                  /> */}
                 </>
               )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="w-full">
               {/* Latest Announcements */}
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
@@ -374,6 +393,16 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
+              <div className="p-3 sm:p-4 border-t border-gray-100 flex justify-end">
+                {employees.length >= EMPLOYEES_PAGE_LIMIT && (
+                  <button
+                    onClick={loadMoreEmployees}
+                    className="text-sm text-indigo-600 hover:underline"
+                  >
+                    Tải thêm nhân viên
+                  </button>
+                )}
+              </div>
 
               {/* Today's Schedule / My Schedule */}
               {/* <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -402,7 +431,7 @@ export default function DashboardPage() {
               </div> */}
 
               {/* Manager: Pending Approvals */}
-              {isManager && (
+              {/* {isManager && (
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                   <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
                     <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -424,7 +453,7 @@ export default function DashboardPage() {
                     <PendingPreferences preferences={shiftPreferences} />
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Recent Time Logs */}
               {/* <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -586,123 +615,123 @@ function QuickAction({
   );
 }
 
-function TodaySchedule({ shifts, employees }: { shifts: Shift[]; employees: Employee[] }) {
-  const today = formatDateISO(new Date());
-  const todayShifts = shifts.filter(s => s.date === today);
+// function TodaySchedule({ shifts, employees }: { shifts: Shift[]; employees: Employee[] }) {
+//   const today = formatDateISO(new Date());
+//   const todayShifts = shifts.filter(s => s.date === today);
 
-  if (todayShifts.length === 0) {
-    return <p className="text-gray-500 text-center py-4 text-sm">Không có ca làm hôm nay</p>;
-  }
+//   if (todayShifts.length === 0) {
+//     return <p className="text-gray-500 text-center py-4 text-sm">Không có ca làm hôm nay</p>;
+//   }
 
-  return (
-    <div className="space-y-2">
-      {todayShifts.slice(0, 5).map((shift) => {
-        const employee = employees.find(e => e.id === shift.employeeId);
-        return (
-          <div key={shift.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 rounded-lg gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
-                <User size={14} className="text-indigo-600 sm:w-4 sm:h-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">{employee?.name || 'N/A'}</p>
-                <p className="text-xs sm:text-sm text-gray-600">{shift.start} - {shift.end}</p>
-              </div>
-            </div>
-            <CheckCircle size={16} className="text-green-500 shrink-0" />
-          </div>
-        );
-      })}
-      {todayShifts.length > 5 && (
-        <p className="text-xs sm:text-sm text-gray-500 text-center">+{todayShifts.length - 5} ca khác</p>
-      )}
-    </div>
-  );
-}
+//   return (
+//     <div className="space-y-2">
+//       {todayShifts.slice(0, 5).map((shift) => {
+//         const employee = employees.find(e => e.id === shift.employeeId);
+//         return (
+//           <div key={shift.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 rounded-lg gap-2">
+//             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+//               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+//                 <User size={14} className="text-indigo-600 sm:w-4 sm:h-4" />
+//               </div>
+//               <div className="min-w-0">
+//                 <p className="font-medium text-gray-900 text-sm truncate">{employee?.name || 'N/A'}</p>
+//                 <p className="text-xs sm:text-sm text-gray-600">{shift.start} - {shift.end}</p>
+//               </div>
+//             </div>
+//             <CheckCircle size={16} className="text-green-500 shrink-0" />
+//           </div>
+//         );
+//       })}
+//       {todayShifts.length > 5 && (
+//         <p className="text-xs sm:text-sm text-gray-500 text-center">+{todayShifts.length - 5} ca khác</p>
+//       )}
+//     </div>
+//   );
+// }
 
-function MyWeekSchedule({ shifts }: { shifts: Shift[] }) {
-  const today = formatDateISO(new Date());
-  const todayShifts = shifts.filter(s => s.date === today);
+// function MyWeekSchedule({ shifts }: { shifts: Shift[] }) {
+//   const today = formatDateISO(new Date());
+//   const todayShifts = shifts.filter(s => s.date === today);
 
-  if (todayShifts.length === 0) {
-    return (
-      <div className="text-center py-6">
-        <Calendar size={32} className="mx-auto text-gray-400 mb-2" />
-        <p className="text-gray-500 text-sm">Không có ca làm hôm nay</p>
-        <p className="text-xs text-gray-400 mt-1">Nghỉ ngơi và nạp năng lượng! 😊</p>
-      </div>
-    );
-  }
+//   if (todayShifts.length === 0) {
+//     return (
+//       <div className="text-center py-6">
+//         <Calendar size={32} className="mx-auto text-gray-400 mb-2" />
+//         <p className="text-gray-500 text-sm">Không có ca làm hôm nay</p>
+//         <p className="text-xs text-gray-400 mt-1">Nghỉ ngơi và nạp năng lượng! 😊</p>
+//       </div>
+//     );
+//   }
 
   // Tính tổng giờ làm
-  const totalHours = todayShifts.reduce((total, shift) => {
-    const [startHour, startMin] = shift.start.split(':').map(Number);
-    const [endHour, endMin] = shift.end.split(':').map(Number);
-    const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
-    return total + hours;
-  }, 0);
+  // const totalHours = todayShifts.reduce((total, shift) => {
+  //   const [startHour, startMin] = shift.start.split(':').map(Number);
+  //   const [endHour, endMin] = shift.end.split(':').map(Number);
+  //   const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  //   return total + hours;
+  // }, 0);
 
-  return (
-    <div className="space-y-3">
-      {/* Tổng giờ làm hôm nay */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-600 font-medium">Tổng giờ hôm nay</p>
-            <p className="text-2xl font-bold text-green-700">{totalHours.toFixed(1)}h</p>
-          </div>
-          <Clock size={32} className="text-green-600 opacity-50" />
-        </div>
-      </div>
+  // return (
+  //   <div className="space-y-3">
+  //     {/* Tổng giờ làm hôm nay
+  //     <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3">
+  //       <div className="flex items-center justify-between">
+  //         <div>
+  //           <p className="text-xs text-gray-600 font-medium">Tổng giờ hôm nay</p>
+  //           <p className="text-2xl font-bold text-green-700">{totalHours.toFixed(1)}h</p>
+  //         </div>
+  //         <Clock size={32} className="text-green-600 opacity-50" />
+  //       </div>
+  //     </div> */}
 
-      {/* Danh sách ca làm */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ca làm việc hôm nay</p>
-        {todayShifts.map((shift) => {
-          // Extract position from notes
-          const position = shift.notes?.includes('Position:') 
-            ? shift.notes.split('Position:')[1].trim() 
-            : 'Chưa xác định';
+  //     {/* Danh sách ca làm */}
+  //     <div className="space-y-2">
+  //       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ca làm việc hôm nay</p>
+  //       {todayShifts.map((shift) => {
+  //         // Extract position from notes
+  //         const position = shift.notes?.includes('Position:') 
+  //           ? shift.notes.split('Position:')[1].trim() 
+  //           : 'Chưa xác định';
           
-          const [startHour, startMin] = shift.start.split(':').map(Number);
-          const [endHour, endMin] = shift.end.split(':').map(Number);
-          const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+  //         const [startHour, startMin] = shift.start.split(':').map(Number);
+  //         const [endHour, endMin] = shift.end.split(':').map(Number);
+  //         const hours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
 
-          return (
-            <div key={shift.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-                      <User size={16} className="text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm">{position}</p>
-                      <p className="text-xs text-gray-500">Vị trí làm việc</p>
-                    </div>
-                  </div>
+  //         return (
+  //           <div key={shift.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+  //             <div className="flex items-start justify-between gap-3">
+  //               <div className="flex-1 min-w-0">
+  //                 <div className="flex items-center gap-2 mb-2">
+  //                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+  //                     <User size={16} className="text-blue-600" />
+  //                   </div>
+  //                   <div className="min-w-0">
+  //                     <p className="font-semibold text-gray-900 text-sm">{position}</p>
+  //                     <p className="text-xs text-gray-500">Vị trí làm việc</p>
+  //                   </div>
+  //                 </div>
                   
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={14} className="text-gray-400" />
-                      <span className="font-medium text-gray-700">{shift.start} - {shift.end}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">•</span>
-                      <span className="text-gray-600">{hours.toFixed(1)}h</span>
-                    </div>
-                  </div>
-                </div>
+  //                 <div className="flex items-center gap-4 text-sm">
+  //                   <div className="flex items-center gap-1.5">
+  //                     <Clock size={14} className="text-gray-400" />
+  //                     <span className="font-medium text-gray-700">{shift.start} - {shift.end}</span>
+  //                   </div>
+  //                   <div className="flex items-center gap-1">
+  //                     <span className="text-gray-500">•</span>
+  //                     <span className="text-gray-600">{hours.toFixed(1)}h</span>
+  //                   </div>
+  //                 </div>
+  //               </div>
                 
-                <CheckCircle size={20} className="text-green-500 shrink-0 mt-1" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+  //               <CheckCircle size={20} className="text-green-500 shrink-0 mt-1" />
+  //             </div>
+  //           </div>
+  //         );
+  //       })}
+  //     </div>
+  //   </div>
+  // );
+// }
 
 function PendingPreferences({ preferences }: { preferences: ShiftPreference[] }) {
   const pending = preferences.filter(p => p.status === 'pending');

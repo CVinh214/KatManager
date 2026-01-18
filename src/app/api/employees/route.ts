@@ -2,21 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 // GET: Lấy danh sách employees từ database
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get('role');
+    const search = searchParams.get('search');
+    const limit = parseInt(searchParams.get('limit') || '0', 10) || undefined;
+    const offset = parseInt(searchParams.get('offset') || '0', 10) || undefined;
+
+    const where: any = {};
+    if (role) where.role = role;
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
     const employees = await prisma.employee.findMany({
-      orderBy: {
-        createdAt: 'asc',
-      },
+      where,
+      orderBy: { createdAt: 'asc' },
+      ...(limit ? { take: limit } : {}),
+      ...(offset ? { skip: offset } : {}),
     });
 
     return NextResponse.json(employees);
   } catch (error) {
     console.error('Error fetching employees:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch employees' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 });
   }
 }
 

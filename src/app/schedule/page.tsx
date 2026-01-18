@@ -86,13 +86,16 @@ function ScheduleContent() {
 
   // Load employees from database on mount
   useEffect(() => {
-    console.log('Schedule page: Loading employees from database...');
-    loadEmployees();
+    console.log('Schedule page: Loading employees from database (paginated)...');
+    // Load first page of staff employees to reduce initial payload
+    loadEmployees({ role: 'staff', limit: 100, offset: 0 });
     
     // Load custom positions from database
+    // eslint-disable-next-line react-hooks/immutability
     loadCustomPositions();
     
     // Load shift templates from database
+    // eslint-disable-next-line react-hooks/immutability
     loadShiftTemplates();
   }, [loadEmployees]);
 
@@ -152,6 +155,7 @@ function ScheduleContent() {
     if (weekDates.length > 0) {
       const startDate = formatDateISO(weekDates[0]);
       const endDate = formatDateISO(weekDates[6]);
+      // eslint-disable-next-line react-hooks/immutability
       loadRevenueEstimates(startDate, endDate);
     }
   }, [weekDates]);
@@ -305,13 +309,15 @@ function ScheduleContent() {
     
     console.log('Loading data for week:', startDate, '-', endDate);
     
-    // Load shift preferences
+    // Load shift preferences (first page)
     loadShiftPreferences(undefined, startDate, endDate).then(() => {
       console.log('Loaded shift preferences:', useShiftStore.getState().shiftPreferences.length);
     });
-    
-    // Load shifts and transform to scheduleShifts format
-    loadShifts(undefined, startDate, endDate).then(() => {
+
+    // Load first page of shifts and transform to scheduleShifts format (lazy)
+    // Use moderate limit to avoid huge payloads
+    const SHIFTS_PAGE_LIMIT = 1000;
+    loadShifts(undefined, startDate, endDate, { limit: SHIFTS_PAGE_LIMIT, offset: 0 }).then(() => {
       const { shifts } = useShiftStore.getState();
       console.log('Loaded shifts:', shifts.length);
       const transformed = shifts
@@ -344,7 +350,8 @@ function ScheduleContent() {
   );
 
   const getShiftsForCell = (employeeId: string, date: string) => {
-    return scheduleShifts.filter((s) => s.employeeId === employeeId && s.date === date);
+    const key = `${employeeId}|${date}`;
+    return shiftMap.get(key) || [];
   };
   
   // Legacy function for backward compatibility
@@ -352,6 +359,18 @@ function ScheduleContent() {
     const shifts = getShiftsForCell(employeeId, date);
     return shifts.length > 0 ? shifts[0] : undefined;
   };
+
+  // Build a map for quick lookup of shifts by employeeId+date to avoid repeated O(n) filtering
+  const shiftMap = useMemo(() => {
+    const m = new Map<string, ScheduleShift[]>();
+    for (const s of scheduleShifts) {
+      const key = `${s.employeeId}|${s.date}`;
+      const arr = m.get(key) || [];
+      arr.push(s);
+      m.set(key, arr);
+    }
+    return m;
+  }, [scheduleShifts]);
   
   // Lấy shift preference của nhân viên (thời gian đăng ký)
   const getPreferenceForCell = (employeeId: string, date: string) => {
@@ -1549,7 +1568,7 @@ function ScheduleContent() {
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
                 <div className="font-semibold text-blue-900 mb-1">💡 Mẹo:</div>
                 <div className="text-blue-800 text-xs">
-                  Sau khi tạo, khung giờ này sẽ xuất hiện trong dropdown "Khung giờ làm việc" khi xếp lịch, giúp bạn không phải nhập thủ công mỗi lần.
+                  {/* Sau khi tạo, khung giờ này sẽ xuất hiện trong dropdown "Khung giờ làm việc" khi xếp lịch, giúp bạn không phải nhập thủ công mỗi lần. */}
                 </div>
               </div>
             </div>

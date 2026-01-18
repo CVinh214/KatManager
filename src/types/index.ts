@@ -94,7 +94,7 @@ export interface AuthState {
 
 export interface EmployeeState {
   employees: Employee[];
-  loadEmployees: () => Promise<void>; // Load from API
+  loadEmployees: (opts?: { role?: string; search?: string; limit?: number; offset?: number; append?: boolean }) => Promise<void>; // Load from API (supports pagination)
   addEmployee: (employee: Omit<Employee, 'id' | 'createdAt'>) => void;
   updateEmployee: (id: string, employee: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
@@ -106,7 +106,12 @@ export interface ShiftState {
   shiftRequests: ShiftRequest[];
   shiftPreferences: ShiftPreference[];
   isRegistrationEnabled: boolean; // Quản lý bật/tắt đăng ký lịch
-  loadShifts: (employeeId?: string, startDate?: string, endDate?: string) => Promise<void>; // Load from API
+  loadShifts: (
+    employeeId?: string,
+    startDate?: string,
+    endDate?: string,
+    opts?: { limit?: number; offset?: number; append?: boolean }
+  ) => Promise<void>; // Load from API (supports pagination)
   loadShiftPreferences: (employeeId?: string, startDate?: string, endDate?: string) => Promise<void>; // Load from API
   addShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateShift: (id: string, shift: Partial<Shift>) => void;
