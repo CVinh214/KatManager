@@ -10,7 +10,7 @@ export function generateId(): string {
 }
 
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string' ? parseDateOnly(date) : date;
   return d.toLocaleDateString('vi-VN');
 }
 
@@ -43,5 +43,21 @@ export function getWeekDates(date: Date = new Date()): Date[] {
 }
 
 export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Format using local date components to avoid UTC offset shifting the day
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function parseDateOnly(dateStr: string): Date {
+  // Accept either 'YYYY-MM-DD' or full ISO ('YYYY-MM-DDTHH:mm:...') and create a local Date at local midnight.
+  if (!dateStr) return new Date(NaN);
+  const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) {
+    const [y, m, d] = match[1].split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  // Fallback to Date constructor for other formats
+  return new Date(dateStr);
 }

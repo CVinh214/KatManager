@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TimeLog, TimeLogState } from '@/types';
-import { generateId, calculateHours } from '@/lib/utils';
+import { generateId, calculateHours, formatDateISO } from '@/lib/utils';
 
 // Generate mock time logs
 function generateMockTimeLogs(): TimeLog[] {
@@ -17,7 +17,7 @@ function generateMockTimeLogs(): TimeLog[] {
   for (let i = 0; i < 14; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateISO(date);
 
     employeeIds.forEach((empId, idx) => {
       if (Math.random() > 0.3) {

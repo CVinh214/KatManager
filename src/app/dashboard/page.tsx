@@ -15,7 +15,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
-import { formatDateISO, formatDate, getWeekDates } from '@/lib/utils';
+import { formatDateISO, formatDate, getWeekDates, parseDateOnly } from '@/lib/utils';
 
 interface Announcement {
   id: string;
@@ -752,7 +752,7 @@ function PendingPreferences({ preferences }: { preferences: ShiftPreference[] })
           <div className="min-w-0">
             <p className="font-medium text-gray-900 text-sm truncate">{pref.employee?.name || 'N/A'}</p>
             <p className="text-xs text-gray-600">
-              {formatDate(new Date(pref.date))} • {pref.startTime}-{pref.endTime}
+              {formatDate(pref.date)} • {pref.startTime}-{pref.endTime}
             </p>
           </div>
           <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0">
@@ -768,12 +768,12 @@ function PendingPreferences({ preferences }: { preferences: ShiftPreference[] })
 }
 
 function getMondayOfWeek(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = parseDateOnly(dateStr);
   const day = date.getDay();
   const diff = (day === 0 ? -6 : 1 - day); // CN thì lùi về T2 trước đó
   const monday = new Date(date);
   monday.setDate(date.getDate() + diff);
-  return monday.toISOString().split('T')[0];
+  return formatDateISO(monday);
 }
 
 function RecentTimeLogs({ logs }: { logs: TimeLog[] }) {
@@ -788,7 +788,7 @@ function RecentTimeLogs({ logs }: { logs: TimeLog[] }) {
       {sortedLogs.slice(0, 4).map((log) => (
         <div key={log.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 rounded-lg gap-2">
           <div className="min-w-0">
-            <p className="font-medium text-gray-900 text-sm truncate">{log.employee?.name || formatDate(new Date(log.date))}</p>
+            <p className="font-medium text-gray-900 text-sm truncate">{log.employee?.name || formatDate(log.date)}</p>
             <p className="text-xs sm:text-sm text-gray-600">{log.actualStart} - {log.actualEnd}</p>
           </div>
           <span className="font-semibold text-purple-600 text-sm shrink-0">{log.totalHours.toFixed(1)}h</span>

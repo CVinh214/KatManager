@@ -654,7 +654,7 @@ export default function TimeLogsPage() {
                   {employees.find(e => e.id === selectedCell.employeeId)?.name}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  <strong>Ngày:</strong> {formatDate(new Date(selectedCell.date))}
+                  <strong>Ngày:</strong> {formatDate(selectedCell.date)}
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
 import { Lunar, Solar } from 'lunar-javascript';
+import { parseDateOnly } from './utils';
 
 export interface VietnamHoliday {
   date: string; // ISO format YYYY-MM-DD
@@ -321,8 +322,8 @@ function getGiaoThuaDate(solarYear: number): string | null {
  * Lấy ngày lễ cho một khoảng thời gian
  */
 export function getHolidaysInRange(startDate: string, endDate: string): VietnamHoliday[] {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
   const startYear = start.getFullYear();
   const endYear = end.getFullYear();
   
@@ -341,7 +342,7 @@ export function getHolidaysInRange(startDate: string, endDate: string): VietnamH
  * Kiểm tra một ngày có phải ngày lễ không
  */
 export function getHolidayByDate(date: string): VietnamHoliday | null {
-  const year = new Date(date).getFullYear();
+  const year = parseDateOnly(date).getFullYear();
   const holidays = getVietnamHolidays(year);
   return holidays.find(h => h.date === date) || null;
 }
@@ -359,7 +360,7 @@ export function isPublicHoliday(date: string): boolean {
  */
 export function getSolarToLunar(date: string): { year: number; month: number; day: number; monthName: string } | null {
   try {
-    const d = new Date(date);
+    const d = parseDateOnly(date);
     const solar = Solar.fromYmd(d.getFullYear(), d.getMonth() + 1, d.getDate());
     const lunar = solar.getLunar();
     

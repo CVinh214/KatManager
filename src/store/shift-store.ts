@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Shift, ShiftRequest, ShiftState, ShiftPreference } from '@/types';
-import { generateId, formatDateISO } from '@/lib/utils';
+import { generateId, formatDateISO, parseDateOnly } from '@/lib/utils';
 
 export const useShiftStore = create<ShiftState>()((set, get) => ({
   shifts: [],
@@ -20,10 +20,10 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
       if (response.ok) {
         const data = await response.json();
         // Transform data to match store format
-        const preferences = data.map((p: any) => ({
+          const preferences = data.map((p: any) => ({
           id: p.id,
           employeeId: p.employeeId,
-          date: formatDateISO(new Date(p.date)),
+          date: formatDateISO(parseDateOnly(p.date)),
           startTime: p.startTime,
           endTime: p.endTime,
           status: p.status,
@@ -60,7 +60,7 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
         const shifts = data.map((s: any) => ({
           id: s.id,
           employeeId: s.employeeId,
-          date: formatDateISO(new Date(s.date)),
+          date: formatDateISO(parseDateOnly(s.date)),
           start: s.start,
           end: s.end,
           type: s.type,
@@ -167,7 +167,7 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
         const newPreference: ShiftPreference = {
           id: data.id,
           employeeId: data.employeeId,
-          date: formatDateISO(new Date(data.date)),
+          date: formatDateISO(parseDateOnly(data.date)),
           startTime: data.startTime || undefined,
           endTime: data.endTime || undefined,
           isOff: data.isOff || false,

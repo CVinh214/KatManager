@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useShiftStore } from '@/store/shift-store';
-import { getWeekDates, formatDateISO } from '@/lib/utils';
+import { getWeekDates, formatDateISO, parseDateOnly } from '@/lib/utils';
 import { Calendar, Clock, AlertCircle, CheckCircle, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { VietnamHoliday, getHolidaysInRange, getLunarDateText } from '@/lib/vietnam-holidays';
 
@@ -112,8 +112,8 @@ export default function ShiftPreferenceForm() {
         // Clear from sessionStorage
         sessionStorage.removeItem('editPreference');
         
-        // Navigate to the week containing this date
-        const prefDate = new Date(pref.date);
+        // Navigate to the week containing this date (parse as local date)
+        const prefDate = parseDateOnly(pref.date);
         setCurrentWeek(prefDate);
       } catch (error) {
         console.error('Error loading preference from session:', error);

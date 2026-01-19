@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Download, Calendar, TrendingUp } from 'lucide-react';
 import Papa from 'papaparse';
 import { Position } from '@/types';
+import { formatDateISO, parseDateOnly } from '@/lib/utils';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -25,10 +26,10 @@ export default function ReportsPage() {
 
     if (dateFilter === 'week') {
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      logs = logs.filter((log) => new Date(log.date) >= weekAgo);
+      logs = logs.filter((log) => parseDateOnly(log.date) >= weekAgo);
     } else if (dateFilter === 'month') {
       const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      logs = logs.filter((log) => new Date(log.date) >= monthAgo);
+      logs = logs.filter((log) => parseDateOnly(log.date) >= monthAgo);
     }
 
     if (positionFilter !== 'all') {
@@ -93,7 +94,7 @@ export default function ReportsPage() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `bao-cao-gio-cong-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `bao-cao-gio-cong-${formatDateISO(new Date())}.csv`;
     link.click();
   };
 

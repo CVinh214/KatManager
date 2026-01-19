@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test": "vitest",
+    "test:run": "vitest run",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -42,6 +44,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "vitest": "^1.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",

@@ -5,6 +5,7 @@ import Sidebar from '@/components/layout/sidebar';
 import { useRequireRole } from '@/hooks/use-auth';
 import { useEmployeeStore } from '@/store/employee-store';
 import { Employee, EmployeeRole } from '@/types';
+import { formatDateISO } from '@/lib/utils';
 import { EmployeeFormData } from '@/lib/validations';
 import EmployeeModal from '@/components/employees/employee-modal';
 import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
@@ -150,7 +151,7 @@ const getEmployeeRoleColor = (employeeRole: EmployeeRole) => {
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `bao-cao-nhan-vien-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `bao-cao-nhan-vien-${formatDateISO(new Date())}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

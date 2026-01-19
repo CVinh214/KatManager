@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { formatDateISO } from '@/lib/utils';
 
 // GET: Lấy doanh thu ước chừng
 export async function GET(request: NextRequest) {
@@ -16,7 +17,8 @@ export async function GET(request: NextRequest) {
         where: { date: new Date(y, m - 1, d, 12, 0, 0, 0) },
       });
       
-      return NextResponse.json(estimate);
+      if (!estimate) return NextResponse.json(null);
+      return NextResponse.json({ ...estimate, date: estimate.date ? formatDateISO(estimate.date as Date) : null });
     }
 
     // Lấy doanh thu trong khoảng thời gian
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
       const [startY, startM, startD] = startDate.split('-').map(Number);
       const [endY, endM, endD] = endDate.split('-').map(Number);
       
-      const estimates = await prisma.revenueEstimate.findMany({
+      const estimatesRaw = await prisma.revenueEstimate.findMany({
         where: {
           date: {
             gte: new Date(startY, startM - 1, startD, 0, 0, 0, 0),
@@ -34,16 +36,16 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { date: 'asc' },
       });
-      
+      const estimates = estimatesRaw.map(e => ({ ...e, date: formatDateISO(e.date as Date) }));
       return NextResponse.json(estimates);
     }
 
     // Lấy tất cả
-    const estimates = await prisma.revenueEstimate.findMany({
+    const estimatesRaw = await prisma.revenueEstimate.findMany({
       orderBy: { date: 'desc' },
       take: 100,
     });
-    
+    const estimates = estimatesRaw.map(e => ({ ...e, date: formatDateISO(e.date as Date) }));
     return NextResponse.json(estimates);
   } catch (error) {
     console.error('Error fetching revenue estimates:', error);
@@ -85,7 +87,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(estimate);
+    const out = { ...estimate, date: formatDateISO(estimate.date as Date) };
+    return NextResponse.json(out);
   } catch (error) {
     console.error('Error saving revenue estimate:', error);
     return NextResponse.json(
@@ -129,11 +132,12 @@ export async function PUT(request: NextRequest) {
     });
 
     const results = await Promise.all(promises);
+    const outResults = results.map(r => ({ ...r, date: formatDateISO(r.date as Date) }));
 
     return NextResponse.json({
       success: true,
       count: results.length,
-      estimates: results,
+      estimates: outResults,
     });
   } catch (error) {
     console.error('Error bulk updating revenue estimates:', error);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { formatDateISO } from '@/lib/utils';
 
 // Simple in-memory lock to prevent duplicate submissions
 const submissionLocks = new Map<string, number>();
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Format date to string for frontend
     const formattedLogs = timeLogs.map(log => ({
       ...log,
-      date: log.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD
+      date: formatDateISO(log.date as Date),
     }));
 
     return NextResponse.json(formattedLogs);
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
       // Format date to string for frontend
       const formattedLog = {
         ...timeLog,
-        date: timeLog.date.toISOString().split('T')[0],
+        date: formatDateISO(timeLog.date as Date),
       };
 
       return NextResponse.json(formattedLog, { status: 201 });
@@ -212,7 +213,7 @@ export async function PUT(request: NextRequest) {
     // Format date to string for frontend
     const formattedLog = {
       ...timeLog,
-      date: timeLog.date.toISOString().split('T')[0],
+      date: formatDateISO(timeLog.date as Date),
     };
 
     return NextResponse.json(formattedLog);

@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useEmployeeStore } from '@/store/employee-store';
 import { useShiftStore } from '@/store/shift-store';
 import { ChevronLeft, ChevronRight, X, User, Star } from 'lucide-react';
-import { getWeekDates, formatDateISO, formatDate } from '@/lib/utils';
+import { getWeekDates, formatDateISO, formatDate, parseDateOnly } from '@/lib/utils';
 import { VietnamHoliday, getHolidaysInRange, getLunarDateText } from '@/lib/vietnam-holidays';
 import { getPositionConfig, getPositionIcon, getPositionStyle, setCustomPositions, COLOR_PALETTE, EMOJI_PICKER } from '@/lib/position-config';
 import { useSearchParams } from 'next/navigation';
@@ -145,7 +145,7 @@ function ScheduleContent() {
   }, [weekDates]);
   useEffect(() => {
     if (weekParam) {
-      setCurrentWeek(new Date(weekParam));
+      setCurrentWeek(parseDateOnly(weekParam));
     } else {
       setCurrentWeek(new Date());
     }
@@ -168,7 +168,8 @@ function ScheduleContent() {
         const data = await response.json();
         const estimates: Record<string, number> = {};
         data.forEach((item: any) => {
-          estimates[item.date.split('T')[0]] = item.estimatedRevenue;
+          // API returns date as YYYY-MM-DD
+          estimates[item.date] = item.estimatedRevenue;
         });
         setRevenueEstimates(estimates);
       }
@@ -1300,7 +1301,7 @@ function ScheduleContent() {
             <div className="sticky top-0 bg-white px-4 py-3 sm:p-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Doanh thu ước chừng</h3>
               <p className="text-sm text-gray-600">
-                Ngày: {new Date(editingDate).toLocaleDateString('vi-VN')}
+                Ngày: {formatDate(editingDate)}
               </p>
             </div>
             <div className="p-4 sm:p-6 space-y-4">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { formatDateISO } from '@/lib/utils';
 
 // Simple in-memory lock to prevent duplicate submissions
 const submissionLocks = new Map<string, number>();
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const shifts = await prisma.shift.findMany({
+    const shiftsRaw = await prisma.shift.findMany({
       where,
       include: {
         employee: {
@@ -73,6 +74,13 @@ export async function GET(request: NextRequest) {
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
+
+    // Convert date fields to date-only strings (YYYY-MM-DD) to avoid
+    // timezone shifts when client constructs local Date objects.
+    const shifts = shiftsRaw.map((s) => ({
+      ...s,
+      date: formatDateISO(s.date as Date),
+    }));
 
     return NextResponse.json(shifts);
   } catch (error) {
@@ -143,7 +151,8 @@ export async function POST(request: NextRequest) {
         console.log('Preference marked as approved:', preferenceId);
       }
 
-      return NextResponse.json(shift, { status: 201 });
+      const out = { ...shift, date: formatDateISO(shift.date as Date) };
+      return NextResponse.json(out, { status: 201 });
     } finally {
       // Always release lock
       releaseLock(lockKey);
@@ -185,8 +194,8 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: updateData,
     });
-
-    return NextResponse.json(shift);
+    const out = { ...shift, date: formatDateISO(shift.date as Date) };
+    return NextResponse.json(out);
   } catch (error) {
     console.error('Error updating shift:', error);
     return NextResponse.json(

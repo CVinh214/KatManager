@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { formatDateISO } from '@/lib/utils';
 
 // Simple in-memory lock to prevent duplicate submissions
 const submissionLocks = new Map<string, number>();
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const preferences = await prisma.shiftPreference.findMany({
+    const prefsRaw = await prisma.shiftPreference.findMany({
       where,
       include: {
         employee: {
@@ -74,6 +75,11 @@ export async function GET(request: NextRequest) {
       ...(offset ? { skip: offset } : {}),
     });
 
+    const preferences = prefsRaw.map((p) => ({
+      ...p,
+      date: formatDateISO(p.date as Date),
+    }));
+
     return NextResponse.json(preferences);
   } catch (error) {
     console.error('Error fetching shift preferences:', error);
@@ -88,7 +94,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let { employeeId, date, startTime, endTime, notes, isOff } = body;
+    const { employeeId, date, startTime, endTime, notes, isOff } = body;
 
     // Validate required fields
     if (!employeeId || !date) {
@@ -156,11 +162,14 @@ export async function POST(request: NextRequest) {
     // }
 
       // Upsert: Create or update if exists
+      const [y, m, d] = date.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
+
       const preference = await prisma.shiftPreference.upsert({
         where: {
           employeeId_date: {
             employeeId,
-            date: new Date(date),
+            date: dateObj,
           },
         },
         update: {
@@ -172,7 +181,7 @@ export async function POST(request: NextRequest) {
         },
         create: {
           employeeId,
-          date: new Date(date),
+          date: dateObj,
           startTime: isOff ? null : startTime,
           endTime: isOff ? null : endTime,
           isOff: isOff || false,
@@ -181,7 +190,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(preference, { status: 201 });
+      const out = { ...preference, date: formatDateISO(preference.date as Date) };
+      return NextResponse.json(out, { status: 201 });
     } finally {
       // Always release lock
       releaseLock(lockKey);
@@ -222,8 +232,8 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: updateData,
     });
-
-    return NextResponse.json(preference);
+    const out = { ...preference, date: formatDateISO(preference.date as Date) };
+    return NextResponse.json(out);
   } catch (error) {
     console.error('Error updating shift preference:', error);
     return NextResponse.json(
