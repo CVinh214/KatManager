@@ -8,6 +8,7 @@ import { useEmployeeStore } from '@/store/employee-store';
 import { useShiftStore } from '@/store/shift-store';
 import { ChevronLeft, ChevronRight, X, User, Star } from 'lucide-react';
 import { getWeekDates, formatDateISO, formatDate, parseDateOnly } from '@/lib/utils';
+import { ShiftPreference } from '@/types';
 import { VietnamHoliday, getHolidaysInRange, getLunarDateText } from '@/lib/vietnam-holidays';
 import { getPositionConfig, getPositionIcon, getPositionStyle, setCustomPositions, COLOR_PALETTE, EMOJI_PICKER } from '@/lib/position-config';
 import { useSearchParams } from 'next/navigation';
@@ -54,7 +55,7 @@ function ScheduleContent() {
   const [currentWeek, setCurrentWeek] = useState<Date | null>(null);
   const [scheduleShifts, setScheduleShifts] = useState<ScheduleShift[]>([]);
   const [selectedCell, setSelectedCell] = useState<{ employeeId: string; date: string; mode: 'add' | 'edit'; shiftIndex?: number } | null>(null);
-  const [editData, setEditData] = useState({ position: '', startTime: '', endTime: '', hours: 0 });
+  const [editData, setEditData] = useState({ position: '', startTime: '', endTime: '', hours: 0, notes: '' });
   const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>(DEFAULT_SHIFT_TEMPLATES);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState(false);
@@ -91,11 +92,9 @@ function ScheduleContent() {
     loadEmployees({ role: 'staff', limit: 100, offset: 0 });
     
     // Load custom positions from database
-    // eslint-disable-next-line react-hooks/immutability
     loadCustomPositions();
     
     // Load shift templates from database
-    // eslint-disable-next-line react-hooks/immutability
     loadShiftTemplates();
   }, [loadEmployees]);
 
@@ -375,15 +374,54 @@ function ScheduleContent() {
   
   // Lấy shift preference của nhân viên (thời gian đăng ký)
   const getPreferenceForCell = (employeeId: string, date: string) => {
-    return shiftPreferences.find((p) => p.employeeId === employeeId && p.date === date);
+    return prefMap.get(`${employeeId}|${date}`) || undefined;
   };
+
+  // Build preference map for O(1) lookup
+  const prefMap = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const p of shiftPreferences) {
+      m.set(`${p.employeeId}|${p.date}`, p);
+    }
+    return m;
+  }, [shiftPreferences]);
+
+  // Precompute labor cost totals and hours per date to avoid repeated calculations in render
+  const laborStatsByDate = useMemo(() => {
+    const stats: Record<string, { ftHours: number; clHours: number; percent: number }> = {};
+    const dates = weekDates.slice(0, 7).map(d => formatDateISO(d));
+    for (const date of dates) {
+      let ftHours = 0;
+      let clHours = 0;
+      for (const emp of ftEmployees) {
+        const s = getShiftForCell(emp.id, date);
+        if (s) ftHours += s.hours || 0;
+      }
+      for (const emp of clEmployees) {
+        const s = getShiftForCell(emp.id, date);
+        if (s) clHours += s.hours || 0;
+      }
+      const revenue = revenueEstimates[date] || defaultRevenue;
+      const percent = revenue > 0 ? ((ftHours + clHours) * 1000) / revenue * 100 : 0; // simplified metric
+      stats[date] = { ftHours, clHours, percent };
+    }
+    return stats;
+  }, [weekDates, ftEmployees, clEmployees, shiftMap, revenueEstimates, defaultRevenue]);
+
 
   
   const calculateWeeklyHours = (employeeId: string) => {
-    return scheduleShifts
-      .filter((s) => s.employeeId === employeeId)
-      .reduce((sum, s) => sum + s.hours, 0);
+    return weeklyHoursByEmployee.get(employeeId) || 0;
   };
+
+  // Precompute weekly hours per employee for fast lookup
+  const weeklyHoursByEmployee = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of scheduleShifts) {
+      m.set(s.employeeId, (m.get(s.employeeId) || 0) + (s.hours || 0));
+    }
+    return m;
+  }, [scheduleShifts]);
 
   const handlePreviousWeek = () => {
     if (!currentWeek) return;
@@ -415,6 +453,7 @@ function ScheduleContent() {
         startTime: shift.startTime,
         endTime: shift.endTime,
         hours: shift.hours,
+        notes: (shift as any).notes || '',
       });
     } else if (existingShifts.length === 0 && preference && preference.status === 'pending') {
       // Nếu có preference của nhân viên, tự động điền thời gian đăng ký
@@ -426,6 +465,7 @@ function ScheduleContent() {
           startTime: '',
           endTime: '',
           hours: 0,
+          notes: preference.notes || '',
         });
       } else if (preference.startTime && preference.endTime) {
         const [startHour, startMin] = preference.startTime.split(':').map(Number);
@@ -437,10 +477,173 @@ function ScheduleContent() {
           startTime: preference.startTime,
           endTime: preference.endTime,
           hours: Number(hours.toFixed(1)),
+          notes: preference.notes || '',
         });
       }
+      } else {
+      setEditData({ position: '', startTime: '', endTime: '', hours: 0, notes: '' });
+    }
+  };
+
+  // New: open registration modal for employees (non-manager)
+  const openRegistrationForEmployee = (employeeId: string, date: string) => {
+    // open selectedCell even for non-manager; UI will show registration modal
+    setSelectedCell({ employeeId, date, mode: 'add' });
+    // Prefill with existing preference if any
+    const pref = shiftPreferences.find(p => p.employeeId === employeeId && p.date === date);
+    if (pref) {
+      let hours = 0;
+      if (!pref.isOff && pref.startTime && pref.endTime) {
+        const [sh, sm] = pref.startTime.split(':').map(Number);
+        const [eh, em] = pref.endTime.split(':').map(Number);
+        hours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+      }
+      setEditData({ position: '', startTime: pref.startTime || '', endTime: pref.endTime || '', hours: pref.isOff ? 0 : Number(hours.toFixed(1)), notes: pref.notes || '' });
+      setSelectedTemplate('');
     } else {
-      setEditData({ position: '', startTime: '', endTime: '', hours: 0 });
+      setEditData({ position: '', startTime: '', endTime: '', hours: 0, notes: '' });
+      setSelectedTemplate('');
+    }
+  };
+
+  const handleSavePreference = async () => {
+    if (!selectedCell) return;
+    const { employeeId, date } = selectedCell;
+    const pref = shiftPreferences.find(p => p.employeeId === employeeId && p.date === date);
+    const isOff = editData.position === 'OFF';
+
+    try {
+      const payload: any = {
+        employeeId,
+        date,
+        isOff,
+        startTime: isOff ? '' : editData.startTime,
+        endTime: isOff ? '' : editData.endTime,
+        notes: editData.notes || '',
+      };
+
+      // Optimistic UI update: update store immediately
+      const store = useShiftStore.getState();
+      const prevPrefs = store.shiftPreferences;
+
+      if (pref) {
+        const updatedPref = {
+          ...pref,
+          isOff: payload.isOff,
+          startTime: payload.startTime || undefined,
+          endTime: payload.endTime || undefined,
+          notes: payload.notes,
+          status: 'pending',
+          updatedAt: new Date(),
+        } as ShiftPreference;
+        useShiftStore.setState({ shiftPreferences: prevPrefs.map(p => p.id === pref.id ? updatedPref : p) });
+      } else {
+        // create a temporary preference entry so UI reflects immediately
+        const tmpId = `tmp-${Date.now()}`;
+        const tmpPref = {
+          id: tmpId,
+          employeeId,
+          date,
+          startTime: payload.startTime || undefined,
+          endTime: payload.endTime || undefined,
+          isOff: payload.isOff || false,
+          status: 'pending',
+          notes: payload.notes,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as ShiftPreference;
+        useShiftStore.setState({ shiftPreferences: [...prevPrefs, tmpPref] });
+      }
+
+      // Send network request
+      let res;
+      if (pref) {
+        res = await fetch('/api/shift-preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: pref.id, ...payload, isOff: payload.isOff }),
+        });
+      } else {
+        res = await fetch('/api/shift-preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (res && res.ok) {
+        const data = await res.json();
+        // Replace temporary pref or update existing with server response
+        useShiftStore.setState((state) => ({
+          shiftPreferences: state.shiftPreferences.map((p) => {
+            if (p.id && p.id.toString().startsWith('tmp-') && p.employeeId === data.employeeId && p.date === data.date) {
+              return {
+                id: data.id,
+                employeeId: data.employeeId,
+                date: formatDateISO(parseDateOnly(data.date)),
+                startTime: data.startTime || undefined,
+                endTime: data.endTime || undefined,
+                isOff: data.isOff || false,
+                status: data.status,
+                hours: data.hours ?? (data.isOff ? 0 : calculateHoursFromTime(data.startTime || '00:00', data.endTime || '00:00')),
+                notes: data.notes,
+                createdAt: new Date(data.createdAt),
+                updatedAt: new Date(data.updatedAt),
+              };
+            }
+            if (p.id === data.id) {
+              return {
+                ...p,
+                startTime: data.startTime || undefined,
+                endTime: data.endTime || undefined,
+                isOff: data.isOff || false,
+                status: data.status,
+                hours: data.hours ?? (data.isOff ? 0 : calculateHoursFromTime(data.startTime || '00:00', data.endTime || '00:00')),
+                notes: data.notes,
+                updatedAt: new Date(data.updatedAt),
+              };
+            }
+            return p;
+          }),
+        }));
+
+        setSelectedCell(null);
+      } else {
+        // Revert optimistic change on failure
+        useShiftStore.setState({ shiftPreferences: prevPrefs });
+        const data = res ? await res.json() : { error: 'No response' };
+        console.error('Failed to save preference', data);
+        alert('Lưu đăng ký thất bại');
+      }
+    } catch (err) {
+      console.error('Error saving preference', err);
+      alert('Lỗi khi lưu đăng ký');
+    }
+  };
+
+  const handleDeletePreference = async () => {
+    if (!selectedCell) return;
+    const { employeeId, date } = selectedCell;
+    const pref = shiftPreferences.find(p => p.employeeId === employeeId && p.date === date);
+    if (!pref) return;
+
+    try {
+      // Optimistic remove from store
+      const store = useShiftStore.getState();
+      const prevPrefs = store.shiftPreferences;
+      useShiftStore.setState({ shiftPreferences: prevPrefs.filter(p => p.id !== pref.id) });
+
+      const res = await fetch('/api/shift-preferences', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pref.id }) });
+      if (res.ok) {
+        setSelectedCell(null);
+      } else {
+        // revert on failure
+        useShiftStore.setState({ shiftPreferences: prevPrefs });
+        alert('Không thể xóa đăng ký');
+      }
+    } catch (err) {
+      console.error('Error deleting preference', err);
+      alert('Lỗi khi xóa đăng ký');
     }
   };
 
@@ -557,7 +760,7 @@ function ScheduleContent() {
     }
 
     setSelectedCell(null);
-    setEditData({ position: '', startTime: '', endTime: '', hours: 0 });
+    setEditData({ position: '', startTime: '', endTime: '', hours: 0, notes: '' });
   };
 
   // Handle add new position
@@ -698,7 +901,7 @@ function ScheduleContent() {
         setScheduleShifts(transformed);
         
         setSelectedCell(null);
-        setEditData({ position: '', startTime: '', endTime: '', hours: 0 });
+        setEditData({ position: '', startTime: '', endTime: '', hours: 0, notes: '' });
       } else {
         alert('Không thể xóa ca làm');
       }
@@ -709,6 +912,18 @@ function ScheduleContent() {
   };
 
   const isManager = user?.role === 'manager';
+
+  // Visible counts for simple windowing (load more) to reduce initial render
+  const [ftVisibleCount, setFtVisibleCount] = useState<number>(100);
+  const [clVisibleCount, setClVisibleCount] = useState<number>(100);
+
+  useEffect(() => {
+    setFtVisibleCount(Math.min(100, ftEmployees.length || 100));
+  }, [ftEmployees.length]);
+
+  useEffect(() => {
+    setClVisibleCount(Math.min(100, clEmployees.length || 100));
+  }, [clEmployees.length]);
 
   if (!currentWeek || weekDates.length === 0) {
     return (
@@ -763,7 +978,7 @@ function ScheduleContent() {
                       >
                         {shift.position === 'OFF' ? (
                           <>
-                            <div className="font-semibold text-center flex items-center justify-center gap-1">
+                            <div className="font-semibold text-center flex items-center justify-center gap-1 text-gray-900">
                               <span>OFF</span>
                               <span>{icon}</span>
                             </div>
@@ -794,15 +1009,13 @@ function ScheduleContent() {
                     </button>
                   )}
                 </>
-              ) : preference && preference.status === 'pending' ? (
+                ) : preference && preference.status === 'pending' ? (
                 // Đang chờ duyệt
                 <div
                   onClick={() => {
-                    // Nếu là nhân viên và đang xem lịch của chính họ, chuyển sang trang đăng ký để sửa
+                    // Nếu là nhân viên và đang xem lịch của chính họ, mở modal đăng ký để sửa
                     if (!isManager && user?.employeeId === employee.id) {
-                      // Store preference info in sessionStorage để trang đăng ký có thể load
-                      sessionStorage.setItem('editPreference', JSON.stringify(preference));
-                      router.push('/employee-schedule');
+                      openRegistrationForEmployee(employee.id, dateStr);
                     } else if (isManager) {
                       // Manager có thể click để xếp lịch
                       handleCellClick(employee.id, dateStr, 'add');
@@ -810,13 +1023,13 @@ function ScheduleContent() {
                   }}
                   className={`text-[10px] sm:text-xs p-0.5 sm:p-1 rounded border w-full ${
                     preference.isOff
-                      ? 'bg-yellow-50 border-yellow-300'
+                      ? 'bg-gray-50 border-gray-300'
                       : 'bg-blue-50 border-blue-200'
                   } ${(!isManager && user?.employeeId === employee.id) || isManager ? 'cursor-pointer hover:bg-opacity-70' : ''}`}
                   title={!isManager && user?.employeeId === employee.id ? 'Click để sửa đăng ký' : isManager ? 'Click để xếp lịch' : ''}
                 >
                   <div className={`flex items-center gap-0.5 font-semibold ${
-                    preference.isOff ? 'text-yellow-800' : 'text-blue-800'
+                    preference.isOff ? 'text-gray-800' : 'text-gray-800'
                   }`}>
                     <User size={10} />
                     <span>{preference.isOff ? 'OFF' : 'ĐK'}</span>
@@ -848,8 +1061,11 @@ function ScheduleContent() {
                 </div>
               ) : (
                 <div
-                  onClick={() => isManager && handleCellClick(employee.id, dateStr, 'add')}
-                  className={`text-gray-400 text-center w-full text-xs ${isManager ? 'cursor-pointer hover:text-indigo-600' : ''}`}
+                  onClick={() => {
+                    if (isManager) handleCellClick(employee.id, dateStr, 'add');
+                    else if (user?.employeeId === employee.id) openRegistrationForEmployee(employee.id, dateStr);
+                  }}
+                  className={`text-gray-400 text-center w-full h-full flex items-center justify-center text-xs ${isManager ? 'cursor-pointer hover:text-indigo-600' : user?.employeeId === employee.id ? 'cursor-pointer' : '+'}`}
                 >
                   {isManager ? '+' : '-'}
                 </div>
@@ -1014,7 +1230,7 @@ function ScheduleContent() {
               {isManager && (
                 <tr className="bg-yellow-50">
                   <td className="px-2 sm:px-4 py-2 font-bold text-xs sm:text-sm text-gray-900 border border-gray-300 sticky left-0 z-10 bg-yellow-50">
-                    CP nhân công
+                    Chi phí
                   </td>
                   {weekDates.slice(0, 7).map((date, idx) => {
                     const dateStr = formatDateISO(date);
@@ -1054,15 +1270,26 @@ function ScheduleContent() {
                   FT (Full Time)
                 </td>
               </tr>
-              {ftEmployees.map((employee) => renderEmployeeRow(employee))}
+              {ftEmployees.slice(0, ftVisibleCount).map((employee) => renderEmployeeRow(employee))}
+              {ftVisibleCount < ftEmployees.length && (
+                <tr>
+                  <td className="px-2 sm:px-4 py-2" colSpan={9}>
+                    <div className="flex items-center justify-center py-2">
+                      <button
+                        onClick={() => setFtVisibleCount((c) => Math.min(ftEmployees.length, c + 100))}
+                        className="px-3 py-1 bg-white border rounded-md text-sm text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Tải thêm FT +{Math.min(100, ftEmployees.length - ftVisibleCount)}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               <tr className="bg-green-100">
                 <td className="px-2 sm:px-4 py-1.5 sm:py-2 font-bold text-xs sm:text-sm text-gray-900 border border-gray-300 sticky left-0 z-10 bg-green-100">Tổng FT</td>
                 {weekDates.slice(0, 7).map((date) => {
-                  const dateStr = formatDateISO(date);
-                  const total = ftEmployees.reduce((sum, emp) => {
-                    const shift = getShiftForCell(emp.id, dateStr);
-                    return sum + (shift?.hours || 0);
-                  }, 0);
+                    const dateStr = formatDateISO(date);
+                    const total = laborStatsByDate[dateStr]?.ftHours || 0;
                   return (
                     <td key={dateStr} className="px-1 sm:px-3 py-1.5 sm:py-2 text-center font-bold text-xs sm:text-sm text-gray-900 border border-gray-300">
                       {total.toFixed(1)}
@@ -1070,7 +1297,7 @@ function ScheduleContent() {
                   );
                 })}
                 <td className="px-1 sm:px-3 py-1.5 sm:py-2 text-center font-bold text-xs sm:text-sm text-gray-900 border border-gray-300 bg-yellow-100">
-                  {ftEmployees.reduce((sum, emp) => sum + calculateWeeklyHours(emp.id), 0).toFixed(1)}
+                    {Array.from(weeklyHoursByEmployee.values()).reduce((s, v) => s + v, 0).toFixed(1)}
                 </td>
               </tr>
 
@@ -1080,15 +1307,26 @@ function ScheduleContent() {
                   CL (Casual Labour)
                 </td>
               </tr>
-              {clEmployees.map((employee) => renderEmployeeRow(employee))}
+              {clEmployees.slice(0, clVisibleCount).map((employee) => renderEmployeeRow(employee))}
+              {clVisibleCount < clEmployees.length && (
+                <tr>
+                  <td className="px-2 sm:px-4 py-2" colSpan={9}>
+                    <div className="flex items-center justify-center py-2">
+                      <button
+                        onClick={() => setClVisibleCount((c) => Math.min(clEmployees.length, c + 100))}
+                        className="px-3 py-1 bg-white border rounded-md text-sm text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Tải thêm CL +{Math.min(100, clEmployees.length - clVisibleCount)}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               <tr className="bg-green-100">
                 <td className="px-2 sm:px-4 py-1.5 sm:py-2 font-bold text-xs sm:text-sm text-gray-900 border border-gray-300 sticky left-0 z-10 bg-green-100">Tổng CL</td>
                 {weekDates.slice(0, 7).map((date) => {
                   const dateStr = formatDateISO(date);
-                  const total = clEmployees.reduce((sum, emp) => {
-                    const shift = getShiftForCell(emp.id, dateStr);
-                    return sum + (shift?.hours || 0);
-                  }, 0);
+                  const total = laborStatsByDate[dateStr]?.clHours || 0;
                   return (
                     <td key={dateStr} className="px-1 sm:px-3 py-1.5 sm:py-2 text-center font-bold text-xs sm:text-sm text-gray-900 border border-gray-300">
                       {total.toFixed(1)}
@@ -1096,7 +1334,7 @@ function ScheduleContent() {
                   );
                 })}
                 <td className="px-1 sm:px-3 py-1.5 sm:py-2 text-center font-bold text-xs sm:text-sm text-gray-900 border border-gray-300 bg-yellow-100">
-                  {clEmployees.reduce((sum, emp) => sum + calculateWeeklyHours(emp.id), 0).toFixed(1)}
+                  {Array.from(weeklyHoursByEmployee.values()).reduce((s, v) => s + v, 0).toFixed(1)}
                 </td>
               </tr>
             </tbody>
@@ -1189,7 +1427,7 @@ function ScheduleContent() {
                     onChange={(e) => {
                       const pos = e.target.value;
                       if (pos === 'OFF') {
-                        setEditData({ position: pos, startTime: '00:00', endTime: '00:00', hours: 0 });
+                                        setEditData({ position: pos, startTime: '00:00', endTime: '00:00', hours: 0, notes: '' });
                       } else {
                         setEditData({ ...editData, position: pos });
                       }
@@ -1288,6 +1526,101 @@ function ScheduleContent() {
                     {selectedCell.mode === 'add' ? 'Thêm' : 'Lưu'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Registration Modal (for non-managers) */}
+      {selectedCell && !isManager && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white px-4 py-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Đăng ký ca</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {employees.find((e) => e.id === selectedCell.employeeId)?.name} - {selectedCell.date}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCell(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6">
+              {/* Show existing preference if any */}
+              {(() => {
+                const preference = getPreferenceForCell(selectedCell.employeeId, selectedCell.date);
+                if (preference) {
+                  return (
+                    <div className={`mb-4 p-3 border rounded-lg ${preference.isOff ? 'bg-yellow-50 border-yellow-300' : 'bg-blue-50 border-blue-200'}`}>
+                      <div className="flex items-center gap-2 text-sm">
+                        <User size={14} className={preference.isOff ? 'text-yellow-800' : 'text-blue-800'} />
+                        <span className={`font-semibold ${preference.isOff ? 'text-yellow-800' : 'text-blue-800'}`}>
+                          {preference.isOff ? '🏖️ Bạn đã đăng ký nghỉ' : '📝 Bạn đã đăng ký:'}
+                        </span>
+                      </div>
+                      {!preference.isOff && preference.startTime && preference.endTime && (
+                        <div className="text-sm text-blue-700 mt-1">⏰ {preference.startTime} - {preference.endTime}</div>
+                      )}
+                      {preference.notes && (
+                        <div className={`text-sm mt-2 p-2 rounded ${preference.isOff ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                          <span className="font-semibold">💬 Ghi chú:</span> {preference.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Chọn khung giờ có sẵn</label>
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+                  >
+                    <option value="">-- Chọn hoặc nhập thủ công --</option>
+                    {shiftTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.hours}h)</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-1">Giờ bắt đầu</label>
+                    <input type="time" value={editData.startTime} onChange={(e) => setEditData({...editData, startTime: e.target.value})} className="w-full px-3 py-2.5 border rounded-lg text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-1">Giờ kết thúc</label>
+                    <input type="time" value={editData.endTime} onChange={(e) => setEditData({...editData, endTime: e.target.value})} className="w-full px-3 py-2.5 border rounded-lg text-gray-900" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-gray-900">
+                  <input id="isOff" type="checkbox" checked={editData.position === 'OFF'} onChange={(e) => setEditData(e.target.checked ? { position: 'OFF', startTime: '00:00', endTime: '00:00', hours: 0, notes: '' } : { position: '', startTime: '', endTime: '', hours: 0, notes: '' })} />
+                  <label htmlFor="isOff" className="text-sm">OFF</label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Ghi chú (tuỳ chọn)</label>
+                  <textarea value={editData.notes || ''} onChange={(e) => setEditData({...editData, notes: e.target.value})} className="w-full px-3 py-2.5 border rounded-lg text-gray-900" placeholder="Ghi chú..." />
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 text-gray-900">
+                <button onClick={() => setSelectedCell(null)} className="w-full sm:w-auto px-4 py-2.5 border rounded-lg">Hủy</button>
+                {/* <div className="flex gap-2"> */}
+                  <button onClick={handleDeletePreference} className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg border border-red-100">Xóa</button>
+                  <button onClick={handleSavePreference} className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg">Lưu đăng ký</button>
+                {/* </div> */}
               </div>
             </div>
           </div>

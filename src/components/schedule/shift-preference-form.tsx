@@ -281,6 +281,7 @@ export default function ShiftPreferenceForm() {
         startTime: form.isOff ? '' : form.startTime,
         endTime: form.isOff ? '' : form.endTime,
         isOff: form.isOff,
+        hours: form.isOff ? 0 : calculateHours(form.startTime, form.endTime),
         status: 'pending',
         notes: form.notes,
       });

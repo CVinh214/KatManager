@@ -95,16 +95,13 @@ export default function PushNotificationSubscriber() {
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn">
           {/* Header với gradient */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-center">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4 shadow-lg">
               <Bell className="text-indigo-600" size={32} />
             </div>
             <h3 className="text-2xl font-bold text-white mb-2">
               Bật thông báo
             </h3>
-            <p className="text-indigo-100 text-sm">
-              Không bỏ lỡ thông báo quan trọng từ quản lý
-            </p>
           </div>
 
           {/* Content */}
@@ -127,7 +124,7 @@ export default function PushNotificationSubscriber() {
                 <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Nhận thông báo ngay khi có announcement mới</span>
+                <span>Nhận tin ngay khi có thông báo mới</span>
               </div>
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

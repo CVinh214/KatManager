@@ -1,10 +1,6 @@
-import Sidebar from '@/components/layout/sidebar';
-import ShiftPreferenceForm from '@/components/schedule/shift-preference-form';
+import { redirect } from 'next/navigation';
 
 export default function EmployeeSchedulePage() {
-  return (
-    <Sidebar>
-      <ShiftPreferenceForm />
-    </Sidebar>
-  );
+  // Employee schedule page is hidden — redirect to dashboard.
+  redirect('/dashboard');
 }

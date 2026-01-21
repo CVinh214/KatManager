@@ -1,6 +1,7 @@
 {
-  "name": "Quản lý nhân viên",
-  "short_name": "QL Nhân viên",
+  "name": "Quản lý công việc",
+  "short_name": "QL Công việc",
+  "description": "Ứng dụng quản lý lịch làm việc",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -10,6 +11,17 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

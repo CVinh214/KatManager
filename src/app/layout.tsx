@@ -17,7 +17,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Quản lý công việc",
-  description: "Hệ thống quản lý nhân viên và lịch làm việc",
+  description: "Hệ thống quản lý lịch làm việc",
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
+  },
 };
 
 export default function RootLayout({
@@ -38,6 +43,4 @@ export default function RootLayout({
     </html>
   );
 }
-
-<link rel="manifest" href="/manifest.json" />
 

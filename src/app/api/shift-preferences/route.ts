@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, startTime, endTime, notes, status } = body;
+    const { id, startTime, endTime, notes, status, isOff } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -223,8 +223,21 @@ export async function PUT(request: NextRequest) {
 
     const updateData: any = {};
     
-    if (startTime) updateData.startTime = startTime;
-    if (endTime) updateData.endTime = endTime;
+    // Apply isOff and times consistently
+    if (isOff !== undefined) {
+      updateData.isOff = isOff;
+      if (isOff) {
+        // When switching to OFF, clear stored times
+        updateData.startTime = null;
+        updateData.endTime = null;
+      } else {
+        if (startTime !== undefined) updateData.startTime = startTime;
+        if (endTime !== undefined) updateData.endTime = endTime;
+      }
+    } else {
+      if (startTime !== undefined) updateData.startTime = startTime;
+      if (endTime !== undefined) updateData.endTime = endTime;
+    }
     if (notes !== undefined) updateData.notes = notes;
     if (status) updateData.status = status;
 

@@ -12,7 +12,8 @@ import {
   AlertCircle,
   CheckCircle,
   User,
-  ChevronRight
+  ChevronRight,
+  Download
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDateISO, formatDate, getWeekDates, parseDateOnly } from '@/lib/utils';
@@ -78,6 +79,14 @@ export default function DashboardPage() {
   const [shiftPreferences, setShiftPreferences] = useState<ShiftPreference[]>([]);
   const [loading, setLoading] = useState(true);
   const [employeesOffset, setEmployeesOffset] = useState(0);
+  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied'>(() => {
+    if (typeof Notification === 'undefined') return 'default'
+    return Notification.permission as 'default' | 'granted' | 'denied'
+  })
+  const [showNotifBanner, setShowNotifBanner] = useState(false)
+  const [showIosBanner, setShowIosBanner] = useState(false)
+  const [isIos, setIsIos] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const EMPLOYEES_PAGE_LIMIT = 50;
   
   // Load all data
@@ -148,6 +157,65 @@ export default function DashboardPage() {
 
     loadData();
   }, [user?.id, user?.employeeId]);
+
+  // Check notification permission and platform to show a small banner (non-blocking)
+  useEffect(() => {
+    if (!isHydrated || !user) return
+
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent.toLowerCase() : ''
+    const ios = /iphone|ipad|ipod/.test(ua)
+    setIsIos(ios)
+    const mobile = /mobi|android|iphone|ipad|ipod|tablet/.test(ua) || (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0)
+    setIsMobile(mobile)
+
+    const p = (typeof Notification !== 'undefined') ? Notification.permission as 'default' | 'granted' | 'denied' : 'default'
+    setNotifPermission(p)
+
+    if (ios) {
+      // On iOS, web push support is limited; show informational banner linking to guide
+      setShowIosBanner(p !== 'granted')
+      setShowNotifBanner(false)
+
+      // Re-show banner when user returns to the app (focus/visibility), so it appears again after they navigate away
+      const handleVisibility = () => {
+        const perm = (typeof Notification !== 'undefined') ? Notification.permission as 'default' | 'granted' | 'denied' : 'default'
+        setNotifPermission(perm)
+        setShowIosBanner(perm !== 'granted')
+      }
+
+      window.addEventListener('visibilitychange', handleVisibility)
+      window.addEventListener('focus', handleVisibility)
+
+      return () => {
+        window.removeEventListener('visibilitychange', handleVisibility)
+        window.removeEventListener('focus', handleVisibility)
+      }
+    }
+
+    // Non-iOS: show small banner if not granted (only on mobile devices)
+    setShowNotifBanner(mobile && p !== 'granted')
+  }, [isHydrated, user])
+
+  const requestNotificationPermission = async () => {
+    if (typeof Notification === 'undefined' || !('requestPermission' in Notification)) return
+    try {
+      const p = await (Notification as any).requestPermission()
+      setNotifPermission(p)
+      setShowNotifBanner(p !== 'granted')
+      setShowIosBanner(false)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const recheckPermission = () => {
+    const p = (typeof Notification !== 'undefined') ? Notification.permission as 'default' | 'granted' | 'denied' : 'default'
+    setNotifPermission(p)
+    setShowNotifBanner(p !== 'granted')
+    if (isIos) setShowIosBanner(p !== 'granted')
+  }
+
+  
   
   // Load next page of employees (lazy-load)
   const loadMoreEmployees = async () => {
@@ -275,6 +343,34 @@ export default function DashboardPage() {
             </h1>
           </div>
         </div>
+        
+        {/* Small non-blocking notification/banner UI
+        {showIosBanner && notifPermission !== 'granted' && (
+          <div className="mt-2 rounded-md bg-amber-50 border border-amber-100 p-3 text-amber-900">
+            <div className="flex items-center justify-between">
+              <div className="text-sm">Trình duyệt trên iPhone/iPad không hỗ trợ thông báo đầy đủ. Mở trang "Cài đặt" để được hướng dẫn cài Ứng dụng.</div>
+            </div>
+          </div>
+        )} */}
+
+        {showNotifBanner && !showIosBanner && notifPermission !== 'granted' && (
+          <div className="mt-2 rounded-md bg-sky-50 border border-sky-100 p-3 text-sky-900">
+            <div className="flex items-center justify-between">
+              <div className="text-sm">Nhận thông báo để không bỏ lỡ lịch và thông báo quan trọng.</div>
+              <div className="flex items-center gap-2">
+                {notifPermission === 'default' && (
+                  <button className="btn btn-sm btn-primary" onClick={requestNotificationPermission}>Bật thông báo</button>
+                )}
+                {notifPermission === 'denied' && (
+                  <>
+                    <Link href="/settings-mobile" className="text-sky-700 underline text-sm">Hướng dẫn</Link>
+                    <button className="text-sky-700 text-sm" onClick={recheckPermission}>Kiểm tra lại</button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -480,7 +576,7 @@ export default function DashboardPage() {
 
             {/* Quick Actions */}
             <div className="mt-6 sm:mt-8">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Thao tác nhanh</h2>
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Thao tác nhanh</h1>
               <div className="grid grid-cols-4 gap-2 sm:gap-4">
                 {isManager ? (
                   <>
@@ -512,9 +608,9 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <QuickAction
-                      href="/employee-schedule"
-                      icon={Calendar}
-                      label="Đăng ký lịch"
+                      href="/settings-mobile"
+                      icon={Download}
+                      label="Cài đặt"
                       color="blue"
                     />
                     <QuickAction
@@ -542,6 +638,7 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+      
     </Sidebar>
   );
 }

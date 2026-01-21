@@ -71,13 +71,6 @@ export default function Sidebar({ children }: SidebarProps) {
       showInBottomNav: true,
     },
     {
-      name: 'Đăng ký lịch',
-      href: '/employee-schedule',
-      icon: Calendar,
-      roles: ['staff'],
-      showInBottomNav: true,
-    },
-    {
       name: 'Lịch làm việc',
       href: '/schedule',
       icon: Calendar,
@@ -133,7 +126,7 @@ export default function Sidebar({ children }: SidebarProps) {
             )} */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"
             >
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -230,7 +223,7 @@ export default function Sidebar({ children }: SidebarProps) {
                 </div>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 rounded-lg hover:bg-gray-100"
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"
                 >
                   <X size={24} />
                 </button>
@@ -395,7 +388,7 @@ export default function Sidebar({ children }: SidebarProps) {
               onClick={() => setShowDonate(false)}
               className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <X size={24} className="text-gray-600" />
+              <X size={24} className="text-gray-400" />
             </button>
             
             <div className="text-center mb-6">

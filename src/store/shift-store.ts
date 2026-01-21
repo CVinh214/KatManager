@@ -2,6 +2,16 @@ import { create } from 'zustand';
 import { Shift, ShiftRequest, ShiftState, ShiftPreference } from '@/types';
 import { generateId, formatDateISO, parseDateOnly } from '@/lib/utils';
 
+// Helper to calculate hours from HH:mm strings
+const calculateHoursFromTime = (start?: string, end?: string) => {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMinutes = sh * 60 + sm;
+  const endMinutes = eh * 60 + em;
+  return (endMinutes - startMinutes) / 60;
+};
+
 export const useShiftStore = create<ShiftState>()((set, get) => ({
   shifts: [],
   shiftRequests: [],
@@ -26,7 +36,8 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
           date: formatDateISO(parseDateOnly(p.date)),
           startTime: p.startTime,
           endTime: p.endTime,
-          status: p.status,
+            status: p.status,
+            hours: p.hours ?? (p.isOff ? 0 : calculateHoursFromTime(p.startTime, p.endTime)),
           notes: p.notes,
           createdAt: new Date(p.createdAt),
           updatedAt: new Date(p.updatedAt),
@@ -172,6 +183,7 @@ export const useShiftStore = create<ShiftState>()((set, get) => ({
           endTime: data.endTime || undefined,
           isOff: data.isOff || false,
           status: data.status,
+          hours: data.hours ?? (data.isOff ? 0 : calculateHoursFromTime(data.startTime, data.endTime)),
           notes: data.notes,
           createdAt: new Date(data.createdAt),
           updatedAt: new Date(data.updatedAt),

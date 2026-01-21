@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "generate-icons": "node scripts/generate-icons.js",
     "test": "vitest",
     "test:run": "vitest run",
     "build": "next build",
@@ -45,6 +46,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "sharp": "^0.32.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",

@@ -119,7 +119,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 text-pink-600 hover:text-pink-700 font-medium text-sm transition-colors"
             >
               <Heart size={18} className="fill-pink-600" />
-              Dự án nuôi tôi ☕
+              Nuôi tôi ☕
             </button>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function LoginPage() {
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Heart size={24} className="fill-pink-600 text-pink-600" />
-                  Dự án nuôi tôi
+                  Nuôi tôi
                 </h2>
                 <button
                   onClick={() => setShowDonate(false)}
@@ -143,7 +143,7 @@ export default function LoginPage() {
               
               <div className="p-6">
                 <p className="text-gray-600 mb-6 text-center">
-                  Nếu bạn thấy dự án này hữu ích, hãy mua cho tôi một ly cà phê ☕
+                  Bạn có thể ủng hộ nhà phát triển một ly cà phê ☕
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -185,7 +185,7 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-gray-500 text-sm mt-6">
-                  Cảm ơn bạn đã ủng hộ! 🙏💝
+                  🙏💝
                 </p>
               </div>
             </div>

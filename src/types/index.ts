@@ -71,6 +71,7 @@ export interface ShiftRequest {
 }
 
 export interface ShiftPreference {
+  hours: number;
   id: string;
   employeeId: string;
   employeeName?: string;
