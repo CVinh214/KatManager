@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { assessRisks } from '@/lib/ai-service';
+import { NextRequest, NextResponse } from "next/server";
+import { assessRisks } from "@/lib/ai-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,8 +8,8 @@ export async function POST(request: NextRequest) {
 
     if (!employeeId || !startDate || !endDate) {
       return NextResponse.json(
-        { error: 'Missing required fields: employeeId, startDate, endDate' },
-        { status: 400 }
+        { error: "Missing required fields: employeeId, startDate, endDate" },
+        { status: 400 },
       );
     }
 
@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
       risks,
     });
   } catch (error) {
-    console.error('Error assessing risks:', error);
+    console.error("Error assessing risks:", error);
     return NextResponse.json(
-      { error: 'Failed to assess risks' },
-      { status: 500 }
+      { error: "Failed to assess risks" },
+      { status: 500 },
     );
   }
 }

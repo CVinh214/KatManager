@@ -1,32 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { formatDateISO } from '@/lib/utils';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { formatDateISO } from "@/lib/utils";
 
 // GET: Lấy doanh thu ước chừng
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const date = searchParams.get("date");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     // Lấy doanh thu cho một ngày cụ thể
     if (date) {
-      const [y, m, d] = date.split('-').map(Number);
+      const [y, m, d] = date.split("-").map(Number);
       const estimate = await prisma.revenueEstimate.findUnique({
         where: { date: new Date(y, m - 1, d, 12, 0, 0, 0) },
       });
-      
+
       if (!estimate) return NextResponse.json(null);
-      return NextResponse.json({ ...estimate, date: estimate.date ? formatDateISO(estimate.date as Date) : null });
+      return NextResponse.json({
+        ...estimate,
+        date: estimate.date ? formatDateISO(estimate.date as Date) : null,
+      });
     }
 
     // Lấy doanh thu trong khoảng thời gian
     if (startDate && endDate) {
       // Parse dates in local timezone to avoid offset issues
-      const [startY, startM, startD] = startDate.split('-').map(Number);
-      const [endY, endM, endD] = endDate.split('-').map(Number);
-      
+      const [startY, startM, startD] = startDate.split("-").map(Number);
+      const [endY, endM, endD] = endDate.split("-").map(Number);
+
       const estimatesRaw = await prisma.revenueEstimate.findMany({
         where: {
           date: {
@@ -34,24 +37,30 @@ export async function GET(request: NextRequest) {
             lte: new Date(endY, endM - 1, endD, 23, 59, 59, 999),
           },
         },
-        orderBy: { date: 'asc' },
+        orderBy: { date: "asc" },
       });
-      const estimates = estimatesRaw.map(e => ({ ...e, date: formatDateISO(e.date as Date) }));
+      const estimates = estimatesRaw.map((e) => ({
+        ...e,
+        date: formatDateISO(e.date as Date),
+      }));
       return NextResponse.json(estimates);
     }
 
     // Lấy tất cả
     const estimatesRaw = await prisma.revenueEstimate.findMany({
-      orderBy: { date: 'desc' },
+      orderBy: { date: "desc" },
       take: 100,
     });
-    const estimates = estimatesRaw.map(e => ({ ...e, date: formatDateISO(e.date as Date) }));
+    const estimates = estimatesRaw.map((e) => ({
+      ...e,
+      date: formatDateISO(e.date as Date),
+    }));
     return NextResponse.json(estimates);
   } catch (error) {
-    console.error('Error fetching revenue estimates:', error);
+    console.error("Error fetching revenue estimates:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch revenue estimates' },
-      { status: 500 }
+      { error: "Failed to fetch revenue estimates" },
+      { status: 500 },
     );
   }
 }
@@ -64,15 +73,15 @@ export async function POST(request: NextRequest) {
 
     if (!date || !estimatedRevenue) {
       return NextResponse.json(
-        { error: 'Date and estimatedRevenue are required' },
-        { status: 400 }
+        { error: "Date and estimatedRevenue are required" },
+        { status: 400 },
       );
     }
 
     // Upsert: tạo mới hoặc cập nhật nếu đã tồn tại
-    const [y, m, d] = date.split('-').map(Number);
+    const [y, m, d] = date.split("-").map(Number);
     const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
-    
+
     const estimate = await prisma.revenueEstimate.upsert({
       where: { date: dateObj },
       create: {
@@ -90,10 +99,10 @@ export async function POST(request: NextRequest) {
     const out = { ...estimate, date: formatDateISO(estimate.date as Date) };
     return NextResponse.json(out);
   } catch (error) {
-    console.error('Error saving revenue estimate:', error);
+    console.error("Error saving revenue estimate:", error);
     return NextResponse.json(
-      { error: 'Failed to save revenue estimate' },
-      { status: 500 }
+      { error: "Failed to save revenue estimate" },
+      { status: 500 },
     );
   }
 }
@@ -106,16 +115,16 @@ export async function PUT(request: NextRequest) {
 
     if (!dates || !Array.isArray(dates) || !estimatedRevenue) {
       return NextResponse.json(
-        { error: 'Dates array and estimatedRevenue are required' },
-        { status: 400 }
+        { error: "Dates array and estimatedRevenue are required" },
+        { status: 400 },
       );
     }
 
     // Cập nhật cho nhiều ngày cùng lúc
     const promises = dates.map((date: string) => {
-      const [y, m, d] = date.split('-').map(Number);
+      const [y, m, d] = date.split("-").map(Number);
       const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
-      
+
       return prisma.revenueEstimate.upsert({
         where: { date: dateObj },
         create: {
@@ -132,7 +141,10 @@ export async function PUT(request: NextRequest) {
     });
 
     const results = await Promise.all(promises);
-    const outResults = results.map(r => ({ ...r, date: formatDateISO(r.date as Date) }));
+    const outResults = results.map((r) => ({
+      ...r,
+      date: formatDateISO(r.date as Date),
+    }));
 
     return NextResponse.json({
       success: true,
@@ -140,10 +152,10 @@ export async function PUT(request: NextRequest) {
       estimates: outResults,
     });
   } catch (error) {
-    console.error('Error bulk updating revenue estimates:', error);
+    console.error("Error bulk updating revenue estimates:", error);
     return NextResponse.json(
-      { error: 'Failed to bulk update revenue estimates' },
-      { status: 500 }
+      { error: "Failed to bulk update revenue estimates" },
+      { status: 500 },
     );
   }
 }
@@ -152,26 +164,23 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
+    const date = searchParams.get("date");
 
     if (!date) {
-      return NextResponse.json(
-        { error: 'Date is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Date is required" }, { status: 400 });
     }
 
-    const [y, m, d] = date.split('-').map(Number);
+    const [y, m, d] = date.split("-").map(Number);
     await prisma.revenueEstimate.delete({
       where: { date: new Date(y, m - 1, d, 12, 0, 0, 0) },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting revenue estimate:', error);
+    console.error("Error deleting revenue estimate:", error);
     return NextResponse.json(
-      { error: 'Failed to delete revenue estimate' },
-      { status: 500 }
+      { error: "Failed to delete revenue estimate" },
+      { status: 500 },
     );
   }
 }

@@ -1,31 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireSession } from "@/lib/security/session";
 
-// GET: Lấy thông tin user từ database dựa vào email
+// GET: Lấy thông tin user hiện tại từ session cookie
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      );
-    }
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { id: auth.user.id },
       include: {
         employee: true,
       },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -33,18 +24,20 @@ export async function GET(request: NextRequest) {
       email: user.email,
       role: user.role,
       employeeId: user.employeeId,
-      employee: user.employee ? {
-        id: user.employee.id,
-        code: user.employee.code,
-        name: user.employee.name,
-        employeeRole: user.employee.employeeRole,
-      } : null,
+      employee: user.employee
+        ? {
+            id: user.employee.id,
+            code: user.employee.code,
+            name: user.employee.name,
+            employeeRole: user.employee.employeeRole,
+          }
+        : null,
     });
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error("Error fetching user:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
+      { error: "Failed to fetch user" },
+      { status: 500 },
     );
   }
 }

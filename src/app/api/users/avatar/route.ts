@@ -1,17 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireSession } from "@/lib/security/session";
 
 // PUT: Update user avatar
 export async function PUT(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const { userId, avatar } = body;
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
+        { error: "User ID is required" },
+        { status: 400 },
       );
+    }
+
+    if (auth.user.role !== "manager" && auth.user.id !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const user = await prisma.user.update({
@@ -28,10 +36,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Error updating user avatar:', error);
+    console.error("Error updating user avatar:", error);
     return NextResponse.json(
-      { error: 'Failed to update avatar' },
-      { status: 500 }
+      { error: "Failed to update avatar" },
+      { status: 500 },
     );
   }
 }
@@ -39,14 +47,21 @@ export async function PUT(request: NextRequest) {
 // GET: Get user avatar
 export async function GET(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const userId = searchParams.get("userId");
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
+        { error: "User ID is required" },
+        { status: 400 },
       );
+    }
+
+    if (auth.user.role !== "manager" && auth.user.id !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const user = await prisma.user.findUnique({
@@ -58,18 +73,15 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Error fetching user avatar:', error);
+    console.error("Error fetching user avatar:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch avatar' },
-      { status: 500 }
+      { error: "Failed to fetch avatar" },
+      { status: 500 },
     );
   }
 }

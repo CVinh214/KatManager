@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { sendPushToAllEmployees } from '@/lib/push-notification';
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { sendPushToAllEmployees } from "@/lib/push-notification";
+import { requireSession } from "@/lib/security/session";
 
 const prisma = new PrismaClient();
 
@@ -11,15 +12,15 @@ const LOCK_DURATION = 2000; // 2 seconds
 function acquireLock(key: string): boolean {
   const now = Date.now();
   const existing = submissionLocks.get(key);
-  
+
   if (existing && now - existing > LOCK_DURATION) {
     submissionLocks.delete(key);
   }
-  
+
   if (submissionLocks.has(key)) {
     return false;
   }
-  
+
   submissionLocks.set(key, now);
   return true;
 }
@@ -31,16 +32,19 @@ function releaseLock(key: string): void {
 // GET - Lấy danh sách thông báo
 export async function GET(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
+
     const announcements = await prisma.announcement.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(announcements);
   } catch (error) {
-    console.error('Error fetching announcements:', error);
+    console.error("Error fetching announcements:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch announcements' },
-      { status: 500 }
+      { error: "Failed to fetch announcements" },
+      { status: 500 },
     );
   }
 }
@@ -48,23 +52,29 @@ export async function GET(request: NextRequest) {
 // POST - Tạo thông báo mới
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const { title, content, imageUrl, createdBy } = body;
+    const authorId = createdBy || auth.user.id;
 
-    if (!title || !content || !createdBy) {
+    if (!title || !content || !authorId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+        { error: "Missing required fields" },
+        { status: 400 },
       );
     }
 
-    const lockKey = `announcement:${createdBy}:${title.substring(0, 20)}`;
-    
+    const lockKey = `announcement:${authorId}:${title.substring(0, 20)}`;
+
     if (!acquireLock(lockKey)) {
-      console.warn(`[Duplicate Prevention] Blocked duplicate announcement creation`);
+      console.warn(
+        `[Duplicate Prevention] Blocked duplicate announcement creation`,
+      );
       return NextResponse.json(
-        { error: 'Request already in progress, please wait' },
-        { status: 429 }
+        { error: "Request already in progress, please wait" },
+        { status: 429 },
       );
     }
 
@@ -74,28 +84,28 @@ export async function POST(request: NextRequest) {
           title,
           content,
           imageUrl,
-          createdBy,
+          createdBy: authorId,
         },
       });
 
       // 🔔 GỬI PUSH NOTIFICATION (async, không chặn response)
       sendPushToAllEmployees({
-        title: '📢 Biến động số dư',
+        title: "📢 Biến động số dư",
         body: title.substring(0, 100),
-        icon: '/icon-192.png',
-        url: '/announcements',
+        icon: "/icon-192.png",
+        url: "/announcements",
         tag: `announcement-${announcement.id}`,
-      }).catch((err) => console.error('Push error:', err));
+      }).catch((err) => console.error("Push error:", err));
 
       return NextResponse.json(announcement, { status: 201 });
     } finally {
       releaseLock(lockKey);
     }
   } catch (error) {
-    console.error('Error creating announcement:', error);
+    console.error("Error creating announcement:", error);
     return NextResponse.json(
-      { error: 'Failed to create announcement' },
-      { status: 500 }
+      { error: "Failed to create announcement" },
+      { status: 500 },
     );
   }
 }
@@ -103,13 +113,16 @@ export async function POST(request: NextRequest) {
 // PUT - Cập nhật thông báo
 export async function PUT(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const { id, title, content, imageUrl } = body;
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Announcement id is required' },
-        { status: 400 }
+        { error: "Announcement id is required" },
+        { status: 400 },
       );
     }
 
@@ -124,10 +137,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(announcement);
   } catch (error) {
-    console.error('Error updating announcement:', error);
+    console.error("Error updating announcement:", error);
     return NextResponse.json(
-      { error: 'Failed to update announcement' },
-      { status: 500 }
+      { error: "Failed to update announcement" },
+      { status: 500 },
     );
   }
 }
@@ -135,13 +148,16 @@ export async function PUT(request: NextRequest) {
 // DELETE - Xóa thông báo
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager"]);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Announcement id is required' },
-        { status: 400 }
+        { error: "Announcement id is required" },
+        { status: 400 },
       );
     }
 
@@ -151,10 +167,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting announcement:', error);
+    console.error("Error deleting announcement:", error);
     return NextResponse.json(
-      { error: 'Failed to delete announcement' },
-      { status: 500 }
+      { error: "Failed to delete announcement" },
+      { status: 500 },
     );
   }
 }

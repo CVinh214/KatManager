@@ -1,29 +1,29 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 // Danh sách 11 nhân viên từ ACCOUNTS_INFO.md
 const EMPLOYEES_DATA = [
   {
-    code: 'K1',
-    name: 'Nguyễn Văn A',
-    email: 'nguyenvana@example.com',
-    employeeRole: 'SM',
-    role: 'manager',
+    code: "K1",
+    name: "Nguyễn Văn A",
+    email: "nguyenvana@example.com",
+    employeeRole: "SM",
+    role: "manager",
     phone: null,
   },
   {
-    code: 'K2',
-    name: 'Lê Văn B',
-    email: 'levanb@example.com',
-    employeeRole: 'FT',
-    role: 'staff',
+    code: "K2",
+    name: "Lê Văn B",
+    email: "levanb@example.com",
+    employeeRole: "FT",
+    role: "staff",
     phone: null,
   },
 ];
 
-const DEFAULT_PASSWORD = 'Kat123@';
+const DEFAULT_PASSWORD = "Kat123@";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const results = {
       employeesCreated: 0,
@@ -93,23 +93,23 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database seeded successfully',
+      message: "Database seeded successfully",
       results,
     });
   } catch (error) {
-    console.error('Seed error:', error);
+    console.error("Seed error:", error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to seed database',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: "Failed to seed database",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // GET method for convenience (can access via browser)
 export async function GET() {
-  return POST();
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

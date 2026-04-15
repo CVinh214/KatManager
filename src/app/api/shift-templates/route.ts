@@ -1,22 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // GET - Lấy danh sách shift templates
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const templates = await prisma.shiftTemplate.findMany({
       where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     return NextResponse.json(templates);
   } catch (error) {
-    console.error('Error fetching shift templates:', error);
+    console.error("Error fetching shift templates:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch shift templates' },
-      { status: 500 }
+      { error: "Failed to fetch shift templates" },
+      { status: 500 },
     );
   }
 }
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
 
     if (!name || !startTime || !endTime || hours === undefined) {
       return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
+        { error: "All fields are required" },
+        { status: 400 },
       );
     }
 
@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template);
   } catch (error) {
-    console.error('Error creating shift template:', error);
+    console.error("Error creating shift template:", error);
     return NextResponse.json(
-      { error: 'Failed to create shift template' },
-      { status: 500 }
+      { error: "Failed to create shift template" },
+      { status: 500 },
     );
   }
 }
@@ -57,12 +57,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Template ID is required' },
-        { status: 400 }
+        { error: "Template ID is required" },
+        { status: 400 },
       );
     }
 
@@ -73,10 +73,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting shift template:', error);
+    console.error("Error deleting shift template:", error);
     return NextResponse.json(
-      { error: 'Failed to delete shift template' },
-      { status: 500 }
+      { error: "Failed to delete shift template" },
+      { status: 500 },
     );
   }
 }

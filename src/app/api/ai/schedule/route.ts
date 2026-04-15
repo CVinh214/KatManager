@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { optimizeSchedule } from '@/lib/ai-service';
+import { NextRequest, NextResponse } from "next/server";
+import { optimizeSchedule } from "@/lib/ai-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,23 +8,27 @@ export async function POST(request: NextRequest) {
 
     if (!startDate || !endDate) {
       return NextResponse.json(
-        { error: 'Missing required fields: startDate, endDate' },
-        { status: 400 }
+        { error: "Missing required fields: startDate, endDate" },
+        { status: 400 },
       );
     }
 
     // Call AI service to optimize schedule
-    const optimizedSchedule = await optimizeSchedule(startDate, endDate, constraints);
+    const optimizedSchedule = await optimizeSchedule(
+      startDate,
+      endDate,
+      constraints,
+    );
 
     return NextResponse.json({
       success: true,
       schedule: optimizedSchedule,
     });
   } catch (error) {
-    console.error('Error optimizing schedule:', error);
+    console.error("Error optimizing schedule:", error);
     return NextResponse.json(
-      { error: 'Failed to optimize schedule' },
-      { status: 500 }
+      { error: "Failed to optimize schedule" },
+      { status: 500 },
     );
   }
 }

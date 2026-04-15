@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Home,
   Users,
@@ -10,14 +10,14 @@ import {
   Clock,
   Bell,
   LogOut,
+  LogIn,
   Menu,
   X,
   MoreHorizontal,
   Heart,
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 interface Employee {
   id: string;
@@ -35,6 +35,8 @@ interface SidebarProps {
 
 export default function Sidebar({ children }: SidebarProps) {
   const { user, logout, isHydrated } = useAuth();
+  const currentRole = user?.role ?? "staff";
+  const isGuest = !user;
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -45,61 +47,65 @@ export default function Sidebar({ children }: SidebarProps) {
   useEffect(() => {
     if (user?.employeeId) {
       fetch(`/api/employees?id=${user.employeeId}`)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data && !data.error) {
             setCurrentEmployee(data);
           }
         })
-        .catch(err => console.error('Failed to load employee:', err));
+        .catch((err) => console.error("Failed to load employee:", err));
     }
   }, [user?.employeeId]);
 
   const menuItems = [
     {
-      name: 'Trang chủ',
-      href: '/dashboard',
+      name: "Trang chủ",
+      href: "/dashboard",
       icon: Home,
-      roles: ['manager', 'staff'],
+      roles: ["manager", "staff"],
       showInBottomNav: true,
     },
     {
-      name: 'Nhân viên',
-      href: '/employees',
+      name: "Nhân viên",
+      href: "/employees",
       icon: Users,
-      roles: ['manager'],
+      roles: ["manager"],
       showInBottomNav: true,
     },
     {
-      name: 'Lịch làm việc',
-      href: '/schedule',
+      name: "Lịch làm việc",
+      href: "/schedule",
       icon: Calendar,
-      roles: ['manager', 'staff'],
+      roles: ["manager", "staff"],
       showInBottomNav: true,
     },
     {
-      name: 'Giờ công',
-      href: '/time-logs',
+      name: "Giờ công",
+      href: "/time-logs",
       icon: Clock,
-      roles: ['manager', 'staff'],
+      roles: ["manager", "staff"],
       showInBottomNav: true,
     },
     {
-      name: 'Thông báo',
-      href: '/announcements',
+      name: "Thông báo",
+      href: "/announcements",
       icon: Bell,
-      roles: ['manager', 'staff'],
+      roles: ["manager", "staff"],
       showInBottomNav: false,
     },
   ];
 
   const filteredMenuItems = menuItems.filter((item) =>
-    user ? item.roles.includes(user.role) : false
+    item.roles.includes(currentRole),
   );
 
   // Items for bottom navigation (max 4 + more)
-  const bottomNavItems = filteredMenuItems.filter(item => item.showInBottomNav).slice(0, 4);
-  const moreMenuItems = filteredMenuItems.filter(item => !bottomNavItems.includes(item));
+  const bottomNavItems = filteredMenuItems
+    .filter((item) => item.showInBottomNav)
+    .slice(0, 4);
+  const moreMenuItems = filteredMenuItems.filter(
+    (item) => !bottomNavItems.includes(item),
+  );
 
   // Show loading while hydrating to prevent flash of empty menu
   if (!isHydrated) {
@@ -113,17 +119,21 @@ export default function Sidebar({ children }: SidebarProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile header */}
-      <div 
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 safe-area-top"
-      >
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 safe-area-top">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-indigo-600">（づ￣3￣）づ╭❤️～</h1>
+          <h1 className="text-lg font-bold text-indigo-600">
+            （づ￣3￣）づ╭❤️～
+          </h1>
           <div className="flex items-center gap-2">
-            {/* {user && (
-              <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
-              </span>
-            )} */}
+            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              {isGuest
+                ? "Khách"
+                : user?.isSandbox
+                  ? "Sandbox"
+                  : user?.role === "manager"
+                    ? "Quản lý"
+                    : "Nhân viên"}
+            </span>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"
@@ -137,24 +147,34 @@ export default function Sidebar({ children }: SidebarProps) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-screen w-70 bg-white border-r border-gray-200 transition-transform',
-          'hidden lg:block'
+          "fixed top-0 left-0 z-40 h-screen w-70 bg-white border-r border-gray-200 transition-transform",
+          "hidden lg:block",
         )}
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-indigo-600">（づ￣3￣）づ╭❤️～</h1>
-            {user && (
-              <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-900">
-                  {currentEmployee?.name || user.email}
-                </p>
-                <p className="text-xs text-gray-600 capitalize mt-1">
-                  {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
-                  {currentEmployee?.code && ` • ${currentEmployee.code}`}
-                </p>
-              </div>
-            )}
+            <h1 className="text-2xl font-bold text-indigo-600">
+              （づ￣3￣）づ╭❤️～
+            </h1>
+            <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-900">
+                {isGuest
+                  ? "Khách tham quan"
+                  : currentEmployee?.name || user?.email}
+              </p>
+              <p className="text-xs text-gray-600 capitalize mt-1">
+                {isGuest
+                  ? "Chế độ xem công khai"
+                  : user?.isSandbox
+                    ? "Tài khoản test (không dữ liệu cửa hàng)"
+                    : user?.role === "manager"
+                      ? "Quản lý"
+                      : "Nhân viên"}
+                {!isGuest &&
+                  currentEmployee?.code &&
+                  ` • ${currentEmployee.code}`}
+              </p>
+            </div>
           </div>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -166,10 +186,10 @@ export default function Sidebar({ children }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     isActive
-                      ? 'bg-indigo-50 text-indigo-600 font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? "bg-indigo-50 text-indigo-600 font-medium"
+                      : "text-gray-700 hover:bg-gray-100",
                   )}
                 >
                   <Icon size={20} />
@@ -187,13 +207,23 @@ export default function Sidebar({ children }: SidebarProps) {
               <Heart size={20} />
               <span>Nuôi tôi</span>
             </button>
-            <button
-              onClick={logout}
-              className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <LogOut size={20} />
-              <span>Đăng xuất</span>
-            </button>
+            {isGuest ? (
+              <Link
+                href="/login"
+                className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
+              >
+                <LogIn size={20} />
+                <span>Đăng nhập quản lý</span>
+              </Link>
+            ) : (
+              <button
+                onClick={logout}
+                className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut size={20} />
+                <span>Đăng xuất</span>
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -209,17 +239,23 @@ export default function Sidebar({ children }: SidebarProps) {
             <div className="flex flex-col h-full">
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <div>
-                  {user && (
-                    <>
-                      <p className="text-sm font-medium text-gray-900">
-                        {currentEmployee?.name || user.email}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {user.role === 'manager' ? 'Quản lý' : 'Nhân viên'}
-                        {currentEmployee?.code && ` • ${currentEmployee.code}`}
-                      </p>
-                    </>
-                  )}
+                  <p className="text-sm font-medium text-gray-900">
+                    {isGuest
+                      ? "Khách tham quan"
+                      : currentEmployee?.name || user?.email}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {isGuest
+                      ? "Chế độ xem công khai"
+                      : user?.isSandbox
+                        ? "Tài khoản test (không dữ liệu cửa hàng)"
+                        : user?.role === "manager"
+                          ? "Quản lý"
+                          : "Nhân viên"}
+                    {!isGuest &&
+                      currentEmployee?.code &&
+                      ` • ${currentEmployee.code}`}
+                  </p>
                 </div>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -239,10 +275,10 @@ export default function Sidebar({ children }: SidebarProps) {
                       href={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={cn(
-                        'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+                        "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                         isActive
-                          ? 'bg-indigo-50 text-indigo-600 font-medium'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? "bg-indigo-50 text-indigo-600 font-medium"
+                          : "text-gray-700 hover:bg-gray-100",
                       )}
                     >
                       <Icon size={20} />
@@ -263,13 +299,24 @@ export default function Sidebar({ children }: SidebarProps) {
                   <Heart size={20} />
                   <span>Nuôi tôi</span>
                 </button>
-                <button
-                  onClick={logout}
-                  className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut size={20} />
-                  <span>Đăng xuất</span>
-                </button>
+                {isGuest ? (
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
+                  >
+                    <LogIn size={20} />
+                    <span>Đăng nhập quản lý</span>
+                  </Link>
+                ) : (
+                  <button
+                    onClick={logout}
+                    className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={20} />
+                    <span>Đăng xuất</span>
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -277,9 +324,7 @@ export default function Sidebar({ children }: SidebarProps) {
       )}
 
       {/* Mobile Bottom Navigation */}
-      <nav 
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom"
-      >
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom">
         <div className="flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
@@ -289,14 +334,14 @@ export default function Sidebar({ children }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center py-1 px-3 rounded-lg transition-colors min-w-[64px]',
-                  isActive
-                    ? 'text-indigo-600'
-                    : 'text-gray-500'
+                  "flex flex-col items-center py-1 px-3 rounded-lg transition-colors min-w-[64px]",
+                  isActive ? "text-indigo-600" : "text-gray-500",
                 )}
               >
                 <Icon size={22} />
-                <span className="text-[10px] mt-1 font-medium truncate">{item.name}</span>
+                <span className="text-[10px] mt-1 font-medium truncate">
+                  {item.name}
+                </span>
               </Link>
             );
           })}
@@ -305,8 +350,8 @@ export default function Sidebar({ children }: SidebarProps) {
               <button
                 onClick={() => setShowMoreMenu(!showMoreMenu)}
                 className={cn(
-                  'flex flex-col items-center py-1 px-3 rounded-lg transition-colors min-w-[64px]',
-                  showMoreMenu ? 'text-indigo-600' : 'text-gray-500'
+                  "flex flex-col items-center py-1 px-3 rounded-lg transition-colors min-w-[64px]",
+                  showMoreMenu ? "text-indigo-600" : "text-gray-500",
                 )}
               >
                 <MoreHorizontal size={22} />
@@ -328,10 +373,10 @@ export default function Sidebar({ children }: SidebarProps) {
                           href={item.href}
                           onClick={() => setShowMoreMenu(false)}
                           className={cn(
-                            'flex items-center gap-3 px-4 py-3 transition-colors',
+                            "flex items-center gap-3 px-4 py-3 transition-colors",
                             isActive
-                              ? 'bg-indigo-50 text-indigo-600 font-medium'
-                              : 'text-gray-700 hover:bg-gray-100'
+                              ? "bg-indigo-50 text-indigo-600 font-medium"
+                              : "text-gray-700 hover:bg-gray-100",
                           )}
                         >
                           <Icon size={18} />
@@ -349,16 +394,27 @@ export default function Sidebar({ children }: SidebarProps) {
                       <Heart size={18} />
                       <span className="text-sm">Nuôi tôi</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        logout();
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut size={18} />
-                      <span className="text-sm">Đăng xuất</span>
-                    </button>
+                    {isGuest ? (
+                      <Link
+                        href="/login"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="flex items-center gap-3 px-4 py-3 w-full text-indigo-600 hover:bg-indigo-50 transition-colors"
+                      >
+                        <LogIn size={18} />
+                        <span className="text-sm">Đăng nhập quản lý</span>
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          logout();
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut size={18} />
+                        <span className="text-sm">Đăng xuất</span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -369,7 +425,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
       {/* Main content */}
       <main className="lg:ml-64 pt-14 pb-20 lg:pt-0 lg:pb-0">
-        <div className="p-4 lg:p-6" style={{ minHeight: '100vh' }}>
+        <div className="p-4 lg:p-6" style={{ minHeight: "100vh" }}>
           {children}
         </div>
       </main>
@@ -390,10 +446,12 @@ export default function Sidebar({ children }: SidebarProps) {
             >
               <X size={24} className="text-gray-400" />
             </button>
-            
+
             <div className="text-center mb-6">
               <Heart size={48} className="text-pink-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Nuôi tôi</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Nuôi tôi
+              </h2>
               <p className="text-gray-600">Cảm ơn bạn đã ủng hộ dự án! 💖</p>
             </div>
 
@@ -424,7 +482,9 @@ export default function Sidebar({ children }: SidebarProps) {
 
               {/* Viettinbank */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center">
-                <h3 className="font-semibold text-green-900 mb-3">Viettinbank</h3>
+                <h3 className="font-semibold text-green-900 mb-3">
+                  Viettinbank
+                </h3>
                 <div className="bg-white rounded-lg p-2 shadow-sm">
                   <img
                     src="/donate/Viettinbank.jpg"

@@ -1,35 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 // GET: Lấy danh sách employees từ database
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const role = searchParams.get('role');
-    const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '0', 10) || undefined;
-    const offset = parseInt(searchParams.get('offset') || '0', 10) || undefined;
+    const role = searchParams.get("role");
+    const search = searchParams.get("search");
+    const limit = parseInt(searchParams.get("limit") || "0", 10) || undefined;
+    const offset = parseInt(searchParams.get("offset") || "0", 10) || undefined;
 
     const where: any = {};
     if (role) where.role = role;
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { code: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: "insensitive" } },
+        { code: { contains: search, mode: "insensitive" } },
       ];
     }
 
     const employees = await prisma.employee.findMany({
       where,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
     return NextResponse.json(employees);
   } catch (error) {
-    console.error('Error fetching employees:', error);
-    return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 });
+    console.error("Error fetching employees:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch employees" },
+      { status: 500 },
+    );
   }
 }
 
@@ -41,17 +44,17 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Employee ID is required' },
-        { status: 400 }
+        { error: "Employee ID is required" },
+        { status: 400 },
       );
     }
 
     // Build update data
     const updateData: any = {};
     if (avatar !== undefined) updateData.avatar = avatar;
-    
+
     // Add other fields if provided
-    Object.keys(otherFields).forEach(key => {
+    Object.keys(otherFields).forEach((key) => {
       if (otherFields[key] !== undefined) {
         updateData[key] = otherFields[key];
       }
@@ -64,10 +67,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(employee);
   } catch (error) {
-    console.error('Error updating employee:', error);
+    console.error("Error updating employee:", error);
     return NextResponse.json(
-      { error: 'Failed to update employee' },
-      { status: 500 }
+      { error: "Failed to update employee" },
+      { status: 500 },
     );
   }
 }

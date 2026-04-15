@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { setSessionCookie } from "@/lib/security/session";
 
-const DEFAULT_PASSWORD = 'Kat123@';
-const DEMO_PASSWORD = '123';
+const DEFAULT_PASSWORD = "Kat123@";
+const DEMO_PASSWORD = "123";
 
 // POST: Đăng nhập với email/phone và password
 export async function POST(request: NextRequest) {
@@ -12,8 +13,8 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: 'Email/SĐT và mật khẩu là bắt buộc' },
-        { status: 400 }
+        { success: false, error: "Email/SĐT và mật khẩu là bắt buộc" },
+        { status: 400 },
       );
     }
 
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
         where: { phone: email },
         include: { user: { include: { employee: true } } },
       });
-      
+
       if (employee?.user) {
         user = employee.user;
       }
@@ -39,16 +40,19 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Thử với email demo
-      if (email === 'admin@company.com' || email === 'staff@company.com') {
+      if (email === "admin@company.com" || email === "staff@company.com") {
         // Demo accounts - tìm user với role tương ứng
-        const role = email === 'admin@company.com' ? 'manager' : 'staff';
+        const role = email === "admin@company.com" ? "manager" : "staff";
         const demoUser = await prisma.user.findFirst({
           where: { role },
           include: { employee: true },
         });
-        
-        if (demoUser && (password === DEMO_PASSWORD || password === DEFAULT_PASSWORD)) {
-          return NextResponse.json({
+
+        if (
+          demoUser &&
+          (password === DEMO_PASSWORD || password === DEFAULT_PASSWORD)
+        ) {
+          const response = NextResponse.json({
             success: true,
             user: {
               id: demoUser.id,
@@ -56,20 +60,29 @@ export async function POST(request: NextRequest) {
               role: demoUser.role,
               employeeId: demoUser.employeeId,
               avatar: demoUser.employee?.avatar || null,
-              employee: demoUser.employee ? {
-                id: demoUser.employee.id,
-                code: demoUser.employee.code,
-                name: demoUser.employee.name,
-                employeeRole: demoUser.employee.employeeRole,
-              } : null,
+              employee: demoUser.employee
+                ? {
+                    id: demoUser.employee.id,
+                    code: demoUser.employee.code,
+                    name: demoUser.employee.name,
+                    employeeRole: demoUser.employee.employeeRole,
+                  }
+                : null,
             },
           });
+          setSessionCookie(response, {
+            id: demoUser.id,
+            role: demoUser.role,
+            employeeId: demoUser.employeeId || undefined,
+            email: demoUser.email,
+          });
+          return response;
         }
       }
-      
+
       return NextResponse.json(
-        { success: false, error: 'Email/SĐT hoặc mật khẩu không đúng' },
-        { status: 401 }
+        { success: false, error: "Email/SĐT hoặc mật khẩu không đúng" },
+        { status: 401 },
       );
     }
 
@@ -78,13 +91,13 @@ export async function POST(request: NextRequest) {
     const validPasswords = [user.password, DEFAULT_PASSWORD, DEMO_PASSWORD];
     if (!validPasswords.includes(password)) {
       return NextResponse.json(
-        { success: false, error: 'Email/SĐT hoặc mật khẩu không đúng' },
-        { status: 401 }
+        { success: false, error: "Email/SĐT hoặc mật khẩu không đúng" },
+        { status: 401 },
       );
     }
 
     // Trả về thông tin user
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -92,19 +105,28 @@ export async function POST(request: NextRequest) {
         role: user.role,
         employeeId: user.employeeId,
         avatar: user.employee?.avatar || null,
-        employee: user.employee ? {
-          id: user.employee.id,
-          code: user.employee.code,
-          name: user.employee.name,
-          employeeRole: user.employee.employeeRole,
-        } : null,
+        employee: user.employee
+          ? {
+              id: user.employee.id,
+              code: user.employee.code,
+              name: user.employee.name,
+              employeeRole: user.employee.employeeRole,
+            }
+          : null,
       },
     });
+    setSessionCookie(response, {
+      id: user.id,
+      role: user.role,
+      employeeId: user.employeeId || undefined,
+      email: user.email,
+    });
+    return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     return NextResponse.json(
-      { success: false, error: 'Đã xảy ra lỗi khi đăng nhập' },
-      { status: 500 }
+      { success: false, error: "Đã xảy ra lỗi khi đăng nhập" },
+      { status: 500 },
     );
   }
 }

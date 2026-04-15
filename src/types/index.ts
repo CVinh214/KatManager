@@ -1,12 +1,12 @@
-export type Role = 'manager' | 'staff';
+export type Role = "manager" | "staff";
 
-export type EmployeeRole = 'SM' | 'SUP' | 'CAP' | 'FT' | 'CL';
+export type EmployeeRole = "SM" | "SUP" | "CAP" | "FT" | "CL";
 
-export type Position = 'Cashier' | 'Barista' | 'Kitchen Staff' | 'Server';
+export type Position = "Cashier" | "Barista" | "Kitchen Staff" | "Server";
 
-export type ShiftStatus = 'pending' | 'approved' | 'rejected';
+export type ShiftStatus = "pending" | "approved" | "rejected";
 
-export type ShiftType = 'morning' | 'afternoon' | 'evening';
+export type ShiftType = "morning" | "afternoon" | "evening";
 
 export interface User {
   id: string;
@@ -14,6 +14,7 @@ export interface User {
   role: Role;
   employeeId?: string;
   avatar?: string;
+  isSandbox?: boolean;
 }
 
 export interface Employee {
@@ -64,8 +65,8 @@ export interface ShiftRequest {
   employeeName?: string;
   date: string;
   shiftType: ShiftType;
-  requestType: 'register' | 'leave';
-  status: 'pending' | 'approved' | 'rejected';
+  requestType: "register" | "leave";
+  status: "pending" | "approved" | "rejected";
   notes?: string;
   createdAt: Date;
 }
@@ -79,7 +80,7 @@ export interface ShiftPreference {
   startTime?: string; // HH:mm format - optional khi isOff = true
   endTime?: string; // HH:mm format - optional khi isOff = true
   isOff?: boolean; // Đăng ký nghỉ phép
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -95,8 +96,14 @@ export interface AuthState {
 
 export interface EmployeeState {
   employees: Employee[];
-  loadEmployees: (opts?: { role?: string; search?: string; limit?: number; offset?: number; append?: boolean }) => Promise<void>; // Load from API (supports pagination)
-  addEmployee: (employee: Omit<Employee, 'id' | 'createdAt'>) => void;
+  loadEmployees: (opts?: {
+    role?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+    append?: boolean;
+  }) => Promise<void>; // Load from API (supports pagination)
+  addEmployee: (employee: Omit<Employee, "id" | "createdAt">) => void;
   updateEmployee: (id: string, employee: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
   getEmployeeById: (id: string) => Employee | undefined;
@@ -111,25 +118,39 @@ export interface ShiftState {
     employeeId?: string,
     startDate?: string,
     endDate?: string,
-    opts?: { limit?: number; offset?: number; append?: boolean }
+    opts?: { limit?: number; offset?: number; append?: boolean },
   ) => Promise<void>; // Load from API (supports pagination)
-  loadShiftPreferences: (employeeId?: string, startDate?: string, endDate?: string) => Promise<void>; // Load from API
-  addShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  loadShiftPreferences: (
+    employeeId?: string,
+    startDate?: string,
+    endDate?: string,
+  ) => Promise<void>; // Load from API
+  addShift: (shift: Omit<Shift, "id" | "createdAt" | "updatedAt">) => void;
   updateShift: (id: string, shift: Partial<Shift>) => void;
   deleteShift: (id: string) => void;
   getShiftsByEmployee: (employeeId: string) => Shift[];
   getShiftsByDateRange: (startDate: string, endDate: string) => Shift[];
-  addShiftRequest: (request: Omit<ShiftRequest, 'id' | 'createdAt'>) => void;
-  updateShiftRequest: (id: string, status: ShiftRequest['status']) => void;
-  addShiftPreference: (preference: Omit<ShiftPreference, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateShiftPreference: (id: string, updates: Partial<ShiftPreference>) => Promise<void>;
-  getShiftPreferencesByDateRange: (startDate: string, endDate: string) => ShiftPreference[];
+  addShiftRequest: (request: Omit<ShiftRequest, "id" | "createdAt">) => void;
+  updateShiftRequest: (id: string, status: ShiftRequest["status"]) => void;
+  addShiftPreference: (
+    preference: Omit<ShiftPreference, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
+  updateShiftPreference: (
+    id: string,
+    updates: Partial<ShiftPreference>,
+  ) => Promise<void>;
+  getShiftPreferencesByDateRange: (
+    startDate: string,
+    endDate: string,
+  ) => ShiftPreference[];
   setRegistrationEnabled: (enabled: boolean) => void; // Toggle đăng ký lịch
 }
 
 export interface TimeLogState {
   timeLogs: TimeLog[];
-  addTimeLog: (log: Omit<TimeLog, 'id' | 'createdAt' | 'updatedAt' | 'totalHours'>) => void;
+  addTimeLog: (
+    log: Omit<TimeLog, "id" | "createdAt" | "updatedAt" | "totalHours">,
+  ) => void;
   updateTimeLog: (id: string, log: Partial<TimeLog>) => void;
   deleteTimeLog: (id: string) => void;
   getTimeLogsByEmployee: (employeeId: string) => TimeLog[];

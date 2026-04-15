@@ -1,18 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { requireSession } from "@/lib/security/session";
 
 const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const { subscription, userId } = body;
 
     if (!subscription || !userId) {
       return NextResponse.json(
-        { error: 'Missing subscription or userId' },
-        { status: 400 }
+        { error: "Missing subscription or userId" },
+        { status: 400 },
       );
+    }
+
+    if (auth.user.role !== "manager" && auth.user.id !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Lưu hoặc update subscription
@@ -33,24 +41,24 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error saving subscription:', error);
+    console.error("Error saving subscription:", error);
     return NextResponse.json(
-      { error: 'Failed to save subscription' },
-      { status: 500 }
+      { error: "Failed to save subscription" },
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = requireSession(request, ["manager", "staff"]);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(request.url);
-    const endpoint = searchParams.get('endpoint');
+    const endpoint = searchParams.get("endpoint");
 
     if (!endpoint) {
-      return NextResponse.json(
-        { error: 'Missing endpoint' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing endpoint" }, { status: 400 });
     }
 
     await prisma.pushSubscription.delete({
@@ -59,10 +67,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting subscription:', error);
+    console.error("Error deleting subscription:", error);
     return NextResponse.json(
-      { error: 'Failed to delete subscription' },
-      { status: 500 }
+      { error: "Failed to delete subscription" },
+      { status: 500 },
     );
   }
 }

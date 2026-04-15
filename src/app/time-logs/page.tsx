@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import Sidebar from '@/components/layout/sidebar';
-import { useAuth } from '@/hooks/use-auth';
-import { ChevronLeft, ChevronRight, X, Plus, Trash2 } from 'lucide-react';
-import { formatDateISO, getWeekDates, formatDate } from '@/lib/utils';
+import { useState, useMemo, useEffect } from "react";
+import Sidebar from "@/components/layout/sidebar";
+import { useAuth } from "@/hooks/use-auth";
+import { ChevronLeft, ChevronRight, X, Plus, Trash2 } from "lucide-react";
+import { formatDateISO, getWeekDates, formatDate } from "@/lib/utils";
 
 interface TimeLog {
   id: string;
@@ -39,28 +39,70 @@ interface ShiftTemplate {
 }
 
 const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
-  { id: '1', name: 'Ca sáng (7h30 - 12h30)', startTime: '07:30', endTime: '12:30', hours: 5.0 },
-  { id: '2', name: 'Ca chiều (12h30 - 17h)', startTime: '12:30', endTime: '17:00', hours: 4.5 },
-  { id: '3', name: 'Ca tối (17h - 22h)', startTime: '17:00', endTime: '22:00', hours: 5.0 },
-  { id: '4', name: 'Ca sáng (7h30 - 15h)', startTime: '07:30', endTime: '15:00', hours: 7.5 },
-  { id: '5', name: 'Ca chiều (15h - 22h)', startTime: '15:00', endTime: '22:00', hours: 7.0 },
-  { id: '6', name: 'Ca full (7h30 - 17h)', startTime: '07:30', endTime: '17:00', hours: 9.5 },
-  { id: '7', name: 'Ca full (12h30 - 22h)', startTime: '12:30', endTime: '22:00', hours: 9.5 },
+  {
+    id: "1",
+    name: "Ca sáng (7h30 - 12h30)",
+    startTime: "07:30",
+    endTime: "12:30",
+    hours: 5.0,
+  },
+  {
+    id: "2",
+    name: "Ca chiều (12h30 - 17h)",
+    startTime: "12:30",
+    endTime: "17:00",
+    hours: 4.5,
+  },
+  {
+    id: "3",
+    name: "Ca tối (17h - 22h)",
+    startTime: "17:00",
+    endTime: "22:00",
+    hours: 5.0,
+  },
+  {
+    id: "4",
+    name: "Ca sáng (7h30 - 15h)",
+    startTime: "07:30",
+    endTime: "15:00",
+    hours: 7.5,
+  },
+  {
+    id: "5",
+    name: "Ca chiều (15h - 22h)",
+    startTime: "15:00",
+    endTime: "22:00",
+    hours: 7.0,
+  },
+  {
+    id: "6",
+    name: "Ca full (7h30 - 17h)",
+    startTime: "07:30",
+    endTime: "17:00",
+    hours: 9.5,
+  },
+  {
+    id: "7",
+    name: "Ca full (12h30 - 22h)",
+    startTime: "12:30",
+    endTime: "22:00",
+    hours: 9.5,
+  },
 ];
 
-const DEFAULT_POSITIONS = ['Cashier', 'Waiter', 'Setup', 'OFF'];
+const DEFAULT_POSITIONS = ["Cashier", "Waiter", "Setup", "OFF"];
 
 const getPositionLabel = (position: string): string => {
   const labels: Record<string, string> = {
-    Cashier: 'Cashier',
-    Waiter: 'Waiter',
-    Setup: 'Setup',
-    OFF: 'OFF',
+    Cashier: "Cashier",
+    Waiter: "Waiter",
+    Setup: "Setup",
+    OFF: "OFF",
   };
   return labels[position] || position;
 };
 
-const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 export default function TimeLogsPage() {
   const { user, isHydrated } = useAuth();
@@ -70,26 +112,28 @@ export default function TimeLogsPage() {
   const [loading, setLoading] = useState(false);
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-  
+
   // Shift templates và positions (sync từ localStorage với trang schedule)
-  const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>(DEFAULT_SHIFT_TEMPLATES);
+  const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>(
+    DEFAULT_SHIFT_TEMPLATES,
+  );
   const [allPositions, setAllPositions] = useState<string[]>(DEFAULT_POSITIONS);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+
   // Modal state
-  const [selectedCell, setSelectedCell] = useState<{ 
-    employeeId: string; 
-    date: string; 
-    mode: 'add' | 'edit'; 
-    logIndex?: number 
+  const [selectedCell, setSelectedCell] = useState<{
+    employeeId: string;
+    date: string;
+    mode: "add" | "edit";
+    logIndex?: number;
   } | null>(null);
-  
+
   const [formData, setFormData] = useState({
-    actualStart: '--:--',
-    actualEnd: '--:--',
-    position: 'Cashier',
-    positionNote: '',
-    notes: '',
+    actualStart: "--:--",
+    actualEnd: "--:--",
+    position: "Cashier",
+    positionNote: "",
+    notes: "",
   });
 
   // Calculate week dates
@@ -100,61 +144,75 @@ export default function TimeLogsPage() {
   // Load custom positions and templates from database (sync with schedule page)
   useEffect(() => {
     const loadCustomData = async () => {
+      if (!user) {
+        setAllPositions(DEFAULT_POSITIONS);
+        setShiftTemplates(DEFAULT_SHIFT_TEMPLATES);
+        return;
+      }
+
       try {
         // Load custom positions
-        const positionsResponse = await fetch('/api/custom-positions');
+        const positionsResponse = await fetch("/api/custom-positions");
         if (positionsResponse.ok) {
           const customPositions = await positionsResponse.json();
           const customPositionNames = customPositions.map((p: any) => p.name);
           setAllPositions([...DEFAULT_POSITIONS, ...customPositionNames]);
         }
-        
+
         // Load shift templates
-        const templatesResponse = await fetch('/api/shift-templates');
+        const templatesResponse = await fetch("/api/shift-templates");
         if (templatesResponse.ok) {
           const customTemplates = await templatesResponse.json();
           setShiftTemplates([...DEFAULT_SHIFT_TEMPLATES, ...customTemplates]);
         }
       } catch (error) {
-        console.error('Error loading custom data:', error);
+        console.error("Error loading custom data:", error);
       }
     };
-    
+
     loadCustomData();
-  }, []);
+  }, [user?.id]);
 
   // Load employees (exclude managers)
   useEffect(() => {
     const loadEmployees = async () => {
+      if (!user) {
+        setEmployees([]);
+        return;
+      }
+
       try {
-        const response = await fetch('/api/employees');
+        const response = await fetch("/api/employees");
         if (response.ok) {
           const data = await response.json();
           // Filter out managers from time logs - check 'role' field not 'employeeRole'
-          const nonManagers = data.filter((emp: Employee) => 
-            emp.role?.toLowerCase() !== 'manager'
+          const nonManagers = data.filter(
+            (emp: Employee) => emp.role?.toLowerCase() !== "manager",
           );
           setEmployees(nonManagers);
         }
       } catch (error) {
-        console.error('Error loading employees:', error);
+        console.error("Error loading employees:", error);
       }
     };
     loadEmployees();
-  }, []);
+  }, [user?.id]);
 
   // Load time logs for current week
   useEffect(() => {
     const loadTimeLogs = async () => {
-      if (weekDates.length === 0) return;
-      
+      if (!user || weekDates.length === 0) {
+        setTimeLogs([]);
+        return;
+      }
+
       setLoading(true);
       try {
         const startDate = formatDateISO(weekDates[0]);
         const endDate = formatDateISO(weekDates[6]);
 
         const response = await fetch(
-          `/api/time-logs?startDate=${startDate}&endDate=${endDate}`
+          `/api/time-logs?startDate=${startDate}&endDate=${endDate}`,
         );
 
         if (response.ok) {
@@ -162,27 +220,40 @@ export default function TimeLogsPage() {
           setTimeLogs(data);
         }
       } catch (error) {
-        console.error('Error loading time logs:', error);
+        console.error("Error loading time logs:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadTimeLogs();
-  }, [weekDates]);
+  }, [weekDates, user?.id]);
 
   // Load time logs for selected month (for stats)
   useEffect(() => {
     const loadMonthlyTimeLogs = async () => {
+      if (!user) {
+        setMonthlyTimeLogs([]);
+        return;
+      }
+
       try {
-        const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-        const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+        const firstDay = new Date(
+          selectedMonth.getFullYear(),
+          selectedMonth.getMonth(),
+          1,
+        );
+        const lastDay = new Date(
+          selectedMonth.getFullYear(),
+          selectedMonth.getMonth() + 1,
+          0,
+        );
 
         const startDate = formatDateISO(firstDay);
         const endDate = formatDateISO(lastDay);
 
         const response = await fetch(
-          `/api/time-logs?startDate=${startDate}&endDate=${endDate}`
+          `/api/time-logs?startDate=${startDate}&endDate=${endDate}`,
         );
 
         if (response.ok) {
@@ -191,92 +262,97 @@ export default function TimeLogsPage() {
           setMonthlyTimeLogs(data);
         }
       } catch (error) {
-        console.error('Error loading monthly time logs:', error);
+        console.error("Error loading monthly time logs:", error);
       }
     };
-    
+
     loadMonthlyTimeLogs();
-  }, [selectedMonth]);
+  }, [selectedMonth, user?.id]);
 
   // Get time logs for a specific cell
   const getLogsForCell = (employeeId: string, date: string): TimeLog[] => {
-    return timeLogs.filter(log => log.employeeId === employeeId && log.date === date);
+    return timeLogs.filter(
+      (log) => log.employeeId === employeeId && log.date === date,
+    );
   };
 
   // Calculate weekly hours for an employee
   const calculateWeeklyHours = (employeeId: string) => {
     return timeLogs
-      .filter(log => log.employeeId === employeeId)
+      .filter((log) => log.employeeId === employeeId)
       .reduce((sum, log) => sum + log.totalHours, 0);
   };
 
   // Calculate monthly statistics per employee (based on full month data, not weekly)
   const monthlyStats = useMemo(() => {
-    const stats: Record<string, { totalHours: number; positions: Record<string, number> }> = {};
-    
+    const stats: Record<
+      string,
+      { totalHours: number; positions: Record<string, number> }
+    > = {};
+
     // Use monthlyTimeLogs instead of timeLogs for accurate monthly statistics
-    monthlyTimeLogs.forEach(log => {
+    monthlyTimeLogs.forEach((log) => {
       if (!stats[log.employeeId]) {
         stats[log.employeeId] = { totalHours: 0, positions: {} };
       }
       stats[log.employeeId].totalHours += log.totalHours;
-      stats[log.employeeId].positions[log.position] = 
+      stats[log.employeeId].positions[log.position] =
         (stats[log.employeeId].positions[log.position] || 0) + 1;
     });
-    
+
     return stats;
   }, [monthlyTimeLogs]);
 
   // Handle cell click - open modal
   const handleCellClick = (employeeId: string, date: string) => {
     const logs = getLogsForCell(employeeId, date);
-    
+
     if (logs.length > 0) {
       // Edit first log
-      setSelectedCell({ employeeId, date, mode: 'edit', logIndex: 0 });
+      setSelectedCell({ employeeId, date, mode: "edit", logIndex: 0 });
       const log = logs[0];
       setFormData({
         actualStart: log.actualStart,
         actualEnd: log.actualEnd,
         position: log.position,
-        positionNote: log.positionNote || '',
-        notes: log.notes || '',
+        positionNote: log.positionNote || "",
+        notes: log.notes || "",
       });
-      setSelectedTemplate('');
+      setSelectedTemplate("");
     } else {
       // Add new log
-      setSelectedCell({ employeeId, date, mode: 'add' });
+      setSelectedCell({ employeeId, date, mode: "add" });
       setFormData({
-        actualStart: '',
-        actualEnd: '',
-        position: 'Cashier',
-        positionNote: '',
-        notes: '',
+        actualStart: "",
+        actualEnd: "",
+        position: "Cashier",
+        positionNote: "",
+        notes: "",
       });
-      setSelectedTemplate('');
+      setSelectedTemplate("");
     }
   };
 
   // Handle add another log to same cell
   const handleAddAnotherLog = (employeeId: string, date: string) => {
-    setSelectedCell({ employeeId, date, mode: 'add' });
+    setSelectedCell({ employeeId, date, mode: "add" });
     setFormData({
-      actualStart: '',
-      actualEnd: '',
-      position: 'Cashier',
-      positionNote: '',
-      notes: '',
+      actualStart: "",
+      actualEnd: "",
+      position: "Cashier",
+      positionNote: "",
+      notes: "",
     });
-    setSelectedTemplate('');
+    setSelectedTemplate("");
   };
 
   // Handle template selection - auto fill start/end time
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
     if (templateId) {
-      const template = shiftTemplates.find(t => t.id === templateId);
+      const template = shiftTemplates.find((t) => t.id === templateId);
       if (template) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           actualStart: template.startTime,
           actualEnd: template.endTime,
@@ -287,10 +363,10 @@ export default function TimeLogsPage() {
 
   // Calculate hours from time
   const calculateHours = (start: string, end: string): number => {
-    if (!start || !end || start === '--:--' || end === '--:--') return 0;
-    const [startHour, startMin] = start.split(':').map(Number);
-    const [endHour, endMin] = end.split(':').map(Number);
-    return ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+    if (!start || !end || start === "--:--" || end === "--:--") return 0;
+    const [startHour, startMin] = start.split(":").map(Number);
+    const [endHour, endMin] = end.split(":").map(Number);
+    return (endHour * 60 + endMin - (startHour * 60 + startMin)) / 60;
   };
 
   // Handle save time log
@@ -299,13 +375,13 @@ export default function TimeLogsPage() {
 
     try {
       const logs = getLogsForCell(selectedCell.employeeId, selectedCell.date);
-      
-      if (selectedCell.mode === 'edit' && logs[selectedCell.logIndex || 0]) {
+
+      if (selectedCell.mode === "edit" && logs[selectedCell.logIndex || 0]) {
         // Update existing log
         const log = logs[selectedCell.logIndex || 0];
-        const response = await fetch('/api/time-logs', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/time-logs", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: log.id,
             ...formData,
@@ -314,13 +390,15 @@ export default function TimeLogsPage() {
 
         if (response.ok) {
           const updated = await response.json();
-          setTimeLogs(prev => prev.map(l => l.id === updated.id ? updated : l));
+          setTimeLogs((prev) =>
+            prev.map((l) => (l.id === updated.id ? updated : l)),
+          );
         }
       } else {
         // Create new log
-        const response = await fetch('/api/time-logs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/time-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             employeeId: selectedCell.employeeId,
             date: selectedCell.date,
@@ -330,14 +408,14 @@ export default function TimeLogsPage() {
 
         if (response.ok) {
           const created = await response.json();
-          setTimeLogs(prev => [...prev, created]);
+          setTimeLogs((prev) => [...prev, created]);
         }
       }
 
       setSelectedCell(null);
     } catch (error) {
-      console.error('Error saving time log:', error);
-      alert('Lỗi khi lưu ghi chú công');
+      console.error("Error saving time log:", error);
+      alert("Lỗi khi lưu ghi chú công");
     }
   };
 
@@ -345,22 +423,22 @@ export default function TimeLogsPage() {
   const handleDeleteLog = async (logId: string) => {
     try {
       const response = await fetch(`/api/time-logs?id=${logId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (response.ok) {
-        setTimeLogs(prev => prev.filter(l => l.id !== logId));
+        setTimeLogs((prev) => prev.filter((l) => l.id !== logId));
         setSelectedCell(null);
       }
     } catch (error) {
-      console.error('Error deleting time log:', error);
-      alert('Lỗi khi xóa ghi chú công');
+      console.error("Error deleting time log:", error);
+      alert("Lỗi khi xóa ghi chú công");
     }
   };
 
   // Navigation
   const goToPreviousWeek = () => {
-    setCurrentWeek(prev => {
+    setCurrentWeek((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() - 7);
       return newDate;
@@ -368,7 +446,7 @@ export default function TimeLogsPage() {
   };
 
   const goToNextWeek = () => {
-    setCurrentWeek(prev => {
+    setCurrentWeek((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() + 7);
       return newDate;
@@ -380,11 +458,15 @@ export default function TimeLogsPage() {
   };
 
   const goToPreviousMonth = () => {
-    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setSelectedMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+    );
   };
 
   const goToNextMonth = () => {
-    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setSelectedMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+    );
   };
 
   if (!isHydrated) {
@@ -398,23 +480,12 @@ export default function TimeLogsPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Vui lòng đăng nhập để xem ghi chú công</p>
-          <a 
-            href="/login" 
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            Đăng nhập
-          </a>
-        </div>
-      </div>
-    );
-  }
+  const isGuest = !user;
 
-  const monthName = selectedMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+  const monthName = selectedMonth.toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
   const weekTitle = `${formatDate(weekDates[0])} - ${formatDate(weekDates[6])}`;
 
   return (
@@ -422,18 +493,24 @@ export default function TimeLogsPage() {
       <div className="max-w-full">
         {/* Header - Responsive */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Ghi chú công</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+            Ghi chú công
+          </h1>
           <p className="text-sm text-gray-600 hidden sm:block">
-            {user.role === 'manager' 
-              ? 'Xem và chỉnh sửa ghi chú công của tất cả nhân viên'
-              : 'Ghi nhận giờ làm việc của bản thân và đồng nghiệp'}
+            {isGuest
+              ? "Chế độ công khai: dữ liệu ghi chú công được ẩn"
+              : user.role === "manager"
+                ? "Xem và chỉnh sửa ghi chú công của tất cả nhân viên"
+                : "Ghi nhận giờ làm việc của bản thân và đồng nghiệp"}
           </p>
         </div>
 
         {/* Month Selector for Stats - Responsive */}
         <div className="mb-4 sm:mb-6 bg-white p-3 sm:p-4 rounded-lg shadow">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <h2 className="text-base sm:text-xl font-semibold text-gray-900">Thống kê tháng</h2>
+            <h2 className="text-base sm:text-xl font-semibold text-gray-900">
+              Thống kê tháng
+            </h2>
             <div className="flex items-center gap-2 text-gray-900">
               <button
                 onClick={goToPreviousMonth}
@@ -472,8 +549,11 @@ export default function TimeLogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {employees.map(employee => {
-                  const stats = monthlyStats[employee.id] || { totalHours: 0, positions: {} };
+                {employees.map((employee) => {
+                  const stats = monthlyStats[employee.id] || {
+                    totalHours: 0,
+                    positions: {},
+                  };
                   return (
                     <tr key={employee.id} className="hover:bg-gray-50">
                       <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-gray-900">
@@ -485,11 +565,16 @@ export default function TimeLogsPage() {
                       <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-gray-600">
                         {Object.entries(stats.positions).length > 0 ? (
                           <div className="flex flex-wrap gap-1 sm:gap-2">
-                            {Object.entries(stats.positions).map(([pos, count]) => (
-                              <span key={pos} className="inline-flex items-center px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                                {pos}: {count}
-                              </span>
-                            ))}
+                            {Object.entries(stats.positions).map(
+                              ([pos, count]) => (
+                                <span
+                                  key={pos}
+                                  className="inline-flex items-center px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
+                                >
+                                  {pos}: {count}
+                                </span>
+                              ),
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-400">--</span>
@@ -512,7 +597,9 @@ export default function TimeLogsPage() {
                 className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <ChevronLeft size={18} />
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Tuần trước</span>
+                <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                  Tuần trước
+                </span>
               </button>
               <button
                 onClick={goToCurrentWeek}
@@ -524,7 +611,9 @@ export default function TimeLogsPage() {
                 onClick={goToNextWeek}
                 className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Tuần sau</span>
+                <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                  Tuần sau
+                </span>
                 <ChevronRight size={18} />
               </button>
             </div>
@@ -573,7 +662,7 @@ export default function TimeLogsPage() {
                       {weekDates.map((date) => {
                         const dateStr = formatDateISO(date);
                         const logs = getLogsForCell(employee.id, dateStr);
-                        
+
                         return (
                           <td
                             key={dateStr}
@@ -584,18 +673,18 @@ export default function TimeLogsPage() {
                                 <div
                                   key={log.id}
                                   onClick={() => {
-                                    setSelectedCell({ 
-                                      employeeId: employee.id, 
-                                      date: dateStr, 
-                                      mode: 'edit', 
-                                      logIndex: idx 
+                                    setSelectedCell({
+                                      employeeId: employee.id,
+                                      date: dateStr,
+                                      mode: "edit",
+                                      logIndex: idx,
                                     });
                                     setFormData({
                                       actualStart: log.actualStart,
                                       actualEnd: log.actualEnd,
                                       position: log.position,
-                                      positionNote: log.positionNote || '',
-                                      notes: log.notes || '',
+                                      positionNote: log.positionNote || "",
+                                      notes: log.notes || "",
                                     });
                                   }}
                                   className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded p-1 sm:p-1.5 cursor-pointer transition-colors"
@@ -604,16 +693,22 @@ export default function TimeLogsPage() {
                                     {log.actualStart}-{log.actualEnd}
                                   </div>
                                   <div className="text-[10px] sm:text-xs text-blue-700">
-                                    {log.position !== 'OFF' && `${log.position} `}({log.totalHours.toFixed(1)}h)
+                                    {log.position !== "OFF" &&
+                                      `${log.position} `}
+                                    ({log.totalHours.toFixed(1)}h)
                                   </div>
                                 </div>
                               ))}
                               <button
-                                onClick={() => handleAddAnotherLog(employee.id, dateStr)}
+                                onClick={() =>
+                                  handleAddAnotherLog(employee.id, dateStr)
+                                }
                                 className="w-full py-1 sm:py-1.5 text-[10px] sm:text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 border border-dashed border-gray-300 hover:border-indigo-300 rounded transition-colors flex items-center justify-center gap-0.5"
                               >
                                 <Plus size={12} />
-                                <span className="hidden sm:inline">{logs.length > 0 ? 'Thêm' : 'Ghi'}</span>
+                                <span className="hidden sm:inline">
+                                  {logs.length > 0 ? "Thêm" : "Ghi"}
+                                </span>
                               </button>
                             </div>
                           </td>
@@ -637,7 +732,9 @@ export default function TimeLogsPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                {selectedCell.mode === 'edit' ? 'Sửa ghi công' : 'Thêm ghi công'}
+                {selectedCell.mode === "edit"
+                  ? "Sửa ghi công"
+                  : "Thêm ghi công"}
               </h2>
               <button
                 onClick={() => setSelectedCell(null)}
@@ -650,8 +747,11 @@ export default function TimeLogsPage() {
             <div className="p-4 sm:p-6">
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm text-gray-600">
-                  <strong>Nhân viên:</strong>{' '}
-                  {employees.find(e => e.id === selectedCell.employeeId)?.name}
+                  <strong>Nhân viên:</strong>{" "}
+                  {
+                    employees.find((e) => e.id === selectedCell.employeeId)
+                      ?.name
+                  }
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Ngày:</strong> {formatDate(selectedCell.date)}
@@ -666,10 +766,15 @@ export default function TimeLogsPage() {
                   </label>
                   <select
                     value={formData.position}
-                    onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        position: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   >
-                    {allPositions.map(pos => (
+                    {allPositions.map((pos) => (
                       <option key={pos} value={pos}>
                         {getPositionLabel(pos)}
                       </option>
@@ -688,7 +793,7 @@ export default function TimeLogsPage() {
                     className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   >
                     <option value="">-- Chọn hoặc nhập thủ công --</option>
-                    {shiftTemplates.map(template => (
+                    {shiftTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name}
                       </option>
@@ -697,7 +802,7 @@ export default function TimeLogsPage() {
                 </div>
 
                 {/* Time inputs */}
-                {formData.position !== 'OFF' && (
+                {formData.position !== "OFF" && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -706,7 +811,12 @@ export default function TimeLogsPage() {
                       <input
                         type="time"
                         value={formData.actualStart}
-                        onChange={(e) => setFormData(prev => ({ ...prev, actualStart: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            actualStart: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                       />
                     </div>
@@ -717,7 +827,12 @@ export default function TimeLogsPage() {
                       <input
                         type="time"
                         value={formData.actualEnd}
-                        onChange={(e) => setFormData(prev => ({ ...prev, actualEnd: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            actualEnd: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                       />
                     </div>
@@ -725,11 +840,17 @@ export default function TimeLogsPage() {
                 )}
 
                 {/* Calculated Hours */}
-                {formData.position !== 'OFF' && (
+                {formData.position !== "OFF" && (
                   <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
-                    <span className="text-sm font-medium text-indigo-700">Giờ công:</span>
+                    <span className="text-sm font-medium text-indigo-700">
+                      Giờ công:
+                    </span>
                     <span className="text-lg font-bold text-indigo-600">
-                      {calculateHours(formData.actualStart, formData.actualEnd).toFixed(1)}h
+                      {calculateHours(
+                        formData.actualStart,
+                        formData.actualEnd,
+                      ).toFixed(1)}
+                      h
                     </span>
                   </div>
                 )}
@@ -741,7 +862,12 @@ export default function TimeLogsPage() {
                   </label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
                     placeholder="Ghi chú thêm..."
                     rows={2}
                     className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
@@ -752,10 +878,13 @@ export default function TimeLogsPage() {
               {/* Actions */}
               <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
                 <div>
-                  {selectedCell.mode === 'edit' && (
+                  {selectedCell.mode === "edit" && (
                     <button
                       onClick={() => {
-                        const logs = getLogsForCell(selectedCell.employeeId, selectedCell.date);
+                        const logs = getLogsForCell(
+                          selectedCell.employeeId,
+                          selectedCell.date,
+                        );
                         const log = logs[selectedCell.logIndex || 0];
                         if (log) {
                           handleDeleteLog(log.id);
@@ -779,7 +908,7 @@ export default function TimeLogsPage() {
                     onClick={handleSaveLog}
                     className="flex-1 sm:flex-none px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                   >
-                    {selectedCell.mode === 'edit' ? 'Cập nhật' : 'Lưu'}
+                    {selectedCell.mode === "edit" ? "Cập nhật" : "Lưu"}
                   </button>
                 </div>
               </div>
