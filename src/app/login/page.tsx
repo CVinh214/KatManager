@@ -47,7 +47,11 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("Có lỗi xảy ra, vui lòng thử lại");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Có lỗi xảy ra, vui lòng thử lại",
+      );
       setIsLoading(false);
     }
   };

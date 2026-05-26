@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { InitializeUsers } from "@/components/initialize-users";
 import PushNotificationSubscriber from '@/components/push-notification-subscriber';
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
+const isVercel = process.env.VERCEL === "1";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +38,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <InitializeUsers />
-        <SpeedInsights />
+        {isVercel ? <SpeedInsights /> : null}
         <PushNotificationSubscriber />
         {children}
       </body>

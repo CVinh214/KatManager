@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["@prisma/client"],
+  serverExternalPackages: ["@prisma/client", "prisma"],
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.prisma/client/**/*"],
+    "/api/**/*": ["./node_modules/.prisma/client/**/*"],
+  },
   reactCompiler: true,
   allowedDevOrigins: ["192.168.56.1"],
 

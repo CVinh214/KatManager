@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { hasSessionSecret } from "@/lib/env";
 import { setSessionCookie } from "@/lib/security/session";
 
 const DEFAULT_PASSWORD = "Kat123@";
@@ -8,6 +10,17 @@ const DEMO_PASSWORD = "123";
 // POST: Đăng nhập với email/phone và password
 export async function POST(request: NextRequest) {
   try {
+    if (!hasSessionSecret()) {
+      console.error("Login blocked: SESSION_SECRET is missing");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Server chưa cấu hình SESSION_SECRET. Kiểm tra file .env trên VPS.",
+        },
+        { status: 500 },
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
@@ -124,6 +137,31 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Login error:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientInitializationError ||
+      error instanceof Prisma.PrismaClientRustPanicError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Không kết nối được database. Kiểm tra DATABASE_URL trong .env trên VPS và Supabase.",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (error instanceof Error && error.message.includes("SESSION_SECRET")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Server chưa cấu hình SESSION_SECRET.",
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: "Đã xảy ra lỗi khi đăng nhập" },
       { status: 500 },

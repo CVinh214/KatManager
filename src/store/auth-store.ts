@@ -34,7 +34,12 @@ export const useAuthStore = create<AuthState>()(
 
           const data = await response.json();
 
-          if (response.ok && data.success) {
+          if (!response.ok) {
+            console.error("Login failed:", data.error, "status:", response.status);
+            throw new Error(data.error || "Đăng nhập thất bại");
+          }
+
+          if (data.success) {
             clearRuntimeDataStores();
 
             const user = {
@@ -51,11 +56,10 @@ export const useAuthStore = create<AuthState>()(
             return true;
           }
 
-          console.error("Login failed:", data.error);
           return false;
         } catch (error) {
           console.error("Login error:", error);
-          return false;
+          throw error;
         }
       },
       logout: () => {

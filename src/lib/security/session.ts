@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionSecret } from "@/lib/env";
 import { Role } from "@/types";
 
 export const SESSION_COOKIE_NAME = "km_session";
@@ -14,17 +15,6 @@ export interface SessionUser {
 
 interface SessionPayload extends SessionUser {
   exp: number;
-}
-
-function getSessionSecret() {
-  const secret = process.env.SESSION_SECRET;
-  if (secret) return secret;
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET is required in production");
-  }
-
-  return "dev-only-session-secret-change-me";
 }
 
 function base64UrlEncode(input: string) {
