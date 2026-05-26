@@ -5,6 +5,7 @@ const SESSION_COOKIE_NAME = "km_session";
 const PUBLIC_API_PATHS = new Set<string>([
   "/api/auth/login",
   "/api/auth/logout",
+  "/api/health",
   "/api/holidays",
 ]);
 
