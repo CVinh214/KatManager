@@ -1,14 +1,23 @@
-import webpush from 'web-push';
-import { PrismaClient } from '@prisma/client';
+import webpush from "web-push";
+import { prisma } from "@/lib/db";
 
-const prisma = new PrismaClient();
+let vapidConfigured = false;
 
-// Setup VAPID
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+function ensureVapidConfigured(): boolean {
+  if (vapidConfigured) return true;
+
+  const subject = process.env.VAPID_EMAIL;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  if (!subject || !publicKey || !privateKey) {
+    return false;
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidConfigured = true;
+  return true;
+}
 
 interface PushPayload {
   title: string;
@@ -19,6 +28,11 @@ interface PushPayload {
 }
 
 export async function sendPushToAllEmployees(payload: PushPayload) {
+  if (!ensureVapidConfigured()) {
+    console.warn("VAPID not configured — skipping push notifications");
+    return;
+  }
+
   try {
     // Lấy tất cả employees (role = 'staff')
     const employees = await prisma.user.findMany({
